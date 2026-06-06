@@ -143,7 +143,7 @@ if (require.main === module) {
     });
 }
 app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
+    res.sendFile(__dirname + '/public/index.html');
 });
 
 // هذا هو الجزء الأهم لـ Vercel
