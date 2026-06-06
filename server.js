@@ -136,6 +136,12 @@ app.get('/api/live-updates', (req, res) => {
 // نحدد البورت: إذا الاستضافة انطتنا بورت نستخدمه، وإذا بالحاسبة نستخدم 3000
 const PORT = process.env.PORT || 3000;
 
-server.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 السيرفر يعمل على المنفذ ${PORT} ومستعد للإنترنت!`);
-});
+// الشرط الذكي: يعمل الـ listen فقط إذا كنت تشغل الملف مباشرة على حاسبتك
+if (require.main === module) {
+    server.listen(PORT, '0.0.0.0', () => {
+        console.log(`🚀 السيرفر يعمل على المنفذ ${PORT}`);
+    });
+}
+
+// هذا هو الجزء الأهم لـ Vercel
+module.exports = server;
