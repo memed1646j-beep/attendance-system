@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام تسجيل حضور طلبة الكلية التقنية الشمالية</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="profile-header">
+        <div class="cover-photo"></div>
+        <div class="header-content">
+            <div class="logos-container">
+                <div class="logo-box">
+                    <img src="assets/logo1.jpg" alt="شعار الجامعة" class="logo-img" onerror="this.src='https://via.placeholder.com/130?text=Univ+Logo'">
+                </div>
+                <div class="logo-box">
+                    <img src="assets/logo2.jpg" alt="شعار الكلية" class="logo-img" onerror="this.src='https://via.placeholder.com/130?text=College+Logo'">
+                </div>
+            </div>
+            <div class="header-text">
+                <h1>نظام تسجيل حضور طلبة الكلية التقنية الشمالية</h1>
+                <h2>Northern Technical College Student Attendance System</h2>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="auth-container">
+            <!-- أزرار التبديل -->
+            <div class="tabs">
+                <button class="tab-btn active" id="studentTab">بوابة الطالب</button>
+                <button class="tab-btn" id="profTab">بوابة الأستاذ</button>
+            </div>
+
+            <!-- زر مشاهدة فيديو الشرح -->
+            <div style="text-align: center; margin-bottom: 20px;">
+                <!-- استبدل الرابط أدناه برابط الفيديو الحقيقي مالتك بعدين -->
+                <a href="https://youtu.be/luaYWts113g?si=4iHTGOqIFAIkLt4D" target="_blank" class="video-btn">
+                    🎥 كيف يعمل النظام؟ (شاهد الشرح)
+                </a>
+            </div>
+
+            <!-- بوابة الطالب -->
+            <div id="studentForm" class="form-section active">
+                <h3>تسجيل دخول / إنشاء حساب</h3>
+                
+                <input type="text" placeholder="الاسم الرباعي (اتركه فارغاً لتسجيل الدخول)" id="studentName">
+                <input type="email" placeholder="البريد الإلكتروني الجامعي" id="studentEmail">
+                <input type="password" placeholder="كلمة المرور" id="studentPassword">
+                
+                <select id="collegeSelect">
+                    <option value="" disabled selected>اختر الكلية...</option>
+                    <option value="kirkuk">الكلية التقنية / كركوك</option>
+                    <option value="mosul">الكلية التقنية / الموصل</option>
+                </select>
+
+                <select id="deptSelect">
+                    <option value="" disabled selected>اختر القسم...</option>
+                    <option value="تقنيات هندسة الحاسوب">تقنيات هندسة الحاسوب</option>
+                    <option value="تقنيات هندسة القدرة الكهربائية">تقنيات هندسة القدرة الكهربائية</option>
+                    <option value="تقنيات هندسة الميكانيك التطبيقي">تقنيات هندسة الميكانيك التطبيقي</option>
+                    <option value="تقنيات هندسة التكييف والتبريد">تقنيات هندسة التكييف والتبريد</option>
+                    <option value="تقنيات هندسة النفط والغاز">تقنيات هندسة النفط والغاز</option>
+                    <option value="تقنيات هندسة المواد">تقنيات هندسة المواد</option>
+                    <option value="تقنيات هندسة المساحة">تقنيات هندسة المساحة</option>
+                    <option value="تقنيات هندسة الطيران">تقنيات هندسة الطيران</option>
+                </select>
+
+                <button class="main-btn" onclick="handleStudent()">دخول / تسجيل</button>
+            </div>
+
+            <!-- بوابة الأستاذ (بعد التحديث للفورم الذكي) -->
+            <div id="profForm" class="form-section">
+                <h3>تسجيل دخول / إنشاء حساب الأستاذ</h3>
+                
+                <!-- ضفنا حقل الاسم للأستاذ حتى النظام يعرفه جديد لو قديم -->
+                <input type="text" placeholder="الاسم (اتركه فارغاً لتسجيل الدخول)" id="profName">
+                <input type="email" placeholder="البريد الإلكتروني" id="profEmail">
+                <input type="password" placeholder="كلمة المرور" id="profPassword">
+                <button class="main-btn" onclick="handleProf()">تنفيذ (دخول / تسجيل)</button>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="benefits">
+            <div class="benefit-card">
+                <h3>🚀 السلاسة والسرعة</h3>
+                <p>تسجيل الحضور لمئات الطلاب في ثوانٍ معدودة عبر مسح رمز الاستجابة السريعة (QR Code) الديناميكي.</p>
+            </div>
+            <div class="benefit-card">
+                <h3>🛡️ الموثوقية العالية</h3>
+                <p>نظام ذكي يمنع محاولات الغش باستخدام التحقق المزدوج عبر الموقع الجغرافي (GPS) والتحديث المستمر للرمز.</p>
+            </div>
+            <div class="benefit-card">
+                <h3>📊 إدارة ذكية للبيانات</h3>
+                <p>متابعة لحظية لنسب الحضور والغياب، مع إمكانية استيراد وتصدير الكشوفات بسهولة تامة كملفات Excel.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

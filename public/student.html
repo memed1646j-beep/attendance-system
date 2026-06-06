@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الحضور - بوابة الطالب</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="student-body">
+
+    <header class="dash-header">
+        <div class="header-titles">
+            <h2>بوابة تسجيل الحضور</h2>
+            <p>الكلية التقنية / كركوك</p>
+        </div>
+    </header>
+
+    <main class="student-container">
+        <div class="scanner-card student-section">
+            <h3>مسح الباركود (QR Code) 📷</h3>
+            <p>قم بتوجيه كاميرا هاتفك نحو الباركود المعروض لتسجيل حضورك.</p>
+            
+            <div id="reader" class="camera-box"></div>
+            
+            <button id="startScanBtn" class="primary-btn">افتح الكاميرا للمسح</button>
+            <button id="stopScanBtn" class="danger-btn" style="display: none;">إيقاف الكاميرا</button>
+            
+            <div id="scanResult" class="result-message"></div>
+        </div>
+
+        <div id="historySection" class="student-section" style="display: none;">
+            <h3>سجل الحضور 📋</h3>
+            <p>قريباً: هنا ستظهر جميع المحاضرات التي حضرتها بالتاريخ والوقت.</p>
+        </div>
+
+        <div id="profileSection" class="student-section" style="display: none;">
+    <h3>الملف الشخصي 👤</h3>
+    <p>مرحباً بك في بوابة الطالب</p>
+    <button id="logoutBtn" class="danger-btn" style="background-color: #e53e3e; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;"onclick="logout()">
+        تسجيل الخروج
+    </button>
+</div>
+    </main>
+
+    <nav class="student-nav">
+        <button class="nav-btn active" id="nav-scan">
+            📷<br>الماسح
+        </button>
+        <button class="nav-btn" id="nav-history">
+            📋<br>سجلي
+        </button>
+        <button class="nav-btn" id="nav-profile">
+            👤<br>حسابي
+        </button>
+    </nav>
+
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <script src="student-app.js"></script>
+    <script>
+    function logout() {
+        // نطلع رسالة التأكيد للمستخدم
+        const isConfirmed = confirm("هل أنت متأكد أنك تريد الخروج من الحساب؟");
+
+        // إذا ضغط "موافق"
+        if (isConfirmed) {
+            // نمسح هويته من الذاكرة
+            localStorage.removeItem('currentUser');
+            // نرجعه طلقة لصفحة الدخول
+            window.location.href = 'index.html'; 
+        }
+    }
+</script>
+</body>
+</html>
