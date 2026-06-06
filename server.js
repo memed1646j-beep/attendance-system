@@ -142,6 +142,9 @@ if (require.main === module) {
         console.log(`🚀 السيرفر يعمل على المنفذ ${PORT}`);
     });
 }
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
 
 // هذا هو الجزء الأهم لـ Vercel
 module.exports = server;
