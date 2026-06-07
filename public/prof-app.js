@@ -90,7 +90,7 @@ generateDynamicQR(lat, lng);
                 return;
             }
 
-            const response = await fetch('http://localhost:3000/create-class', {
+            const response = await fetch('/create-class', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ className })
@@ -98,8 +98,8 @@ generateDynamicQR(lat, lng);
             const result = await response.json();
 
             if (result.success) {
-                currentClassCode = result.code;
-                alert(`${result.message}\nقم بنسخ كود الدعوة للطلاب: ${result.code}`);
+                currentClassCode = className;
+                alert('✅ تم إنشاء الكلاس بنجاح!');
                 classNameInput.value = "";
             } else {
                 alert(result.message);
@@ -137,7 +137,7 @@ generateDynamicQR(lat, lng);
                 }
 
                 // إرسال للسيرفر
-                const response = await fetch('http://localhost:3000/import-excel-students', {
+                const response = await fetch('/import-excel-students', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ classCode: currentClassCode, studentEmails })
