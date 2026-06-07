@@ -73,7 +73,7 @@ async function handleStudent() {
     // ب- إذا الاسم "مكتوب"، يعني الطالب يريد "إنشاء حساب"
     else {
         try {
-            const res = await fetch('/login-student',  {
+            const res = await fetch('/register-student',  {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ name, email, password, college, department })
@@ -190,4 +190,30 @@ if (startSessionBtn && qrContainer) {
             this.innerHTML = "📍 بدء الجلسة وتوليد الباركود";
         });
     });
+}
+async function createNewClass() {
+    const className = document.getElementById('className').value;
+    
+    if (!className) {
+        alert('الرجاء كتابة اسم الكلاس (المادة) أولاً!');
+        return;
+    }
+
+    try {
+        const res = await fetch('/create-class', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ className: className })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('✅ تم إنشاء الكلاس بنجاح!');
+            document.getElementById('className').value = ''; // تفريغ الحقل بعد الإنشاء
+        } else {
+            alert(data.message);
+        }
+    } catch (err) {
+        alert('خطأ في الاتصال بالسيرفر');
+    }
 }

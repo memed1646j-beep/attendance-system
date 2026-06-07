@@ -15,6 +15,7 @@ mongoose.connect(dbURI).then(() => console.log('✅ متصل بقاعدة الب
 // الجداول (Models)
 const Student = mongoose.model('Student', new mongoose.Schema({ name: String, email: { type: String, unique: true }, password: String, college: String, department: String }));
 const Professor = mongoose.model('Professor', new mongoose.Schema({ email: { type: String, unique: true }, password: String }));
+const Course = mongoose.model('Course', new mongoose.Schema({ name: String }));
 
 // ==========================================
 // مسارات الطالب
@@ -81,7 +82,15 @@ app.post('/login-professor', async (req, res) => {
         res.json({ success: false, message: 'خطأ في السيرفر' });
     }
 });
-
+app.post('/create-class', async (req, res) => {
+    try {
+        const newCourse = new Course({ name: req.body.className });
+        await newCourse.save();
+        res.json({ success: true, message: 'تم إنشاء الكلاس بنجاح' });
+    } catch (error) {
+        res.json({ success: false, message: 'خطأ في السيرفر أثناء إنشاء الكلاس' });
+    }
+});
 // ==========================================
 // مسارات الباركود والحضور
 // ==========================================
