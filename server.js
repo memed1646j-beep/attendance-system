@@ -9,7 +9,7 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // الاتصال بقاعدة البيانات
-const dbURI = 'mongodb+srv://memed1646j_db_user:G3xG4E2NFjgSDaYY@cluster0.5aw6zfp.mongodb.net/attendance?retryWrites=true&w=majority&appName=Cluster0';
+const dbURI = 'mongodb+srv://memed1646j_db_user:memed2026@cluster0.5aw6zfp.mongodb.net/attendance?retryWrites=true&w=majority&appName=Cluster0';
 mongoose.connect(dbURI).then(() => console.log('✅ متصل بقاعدة البيانات')).catch(err => console.log(err));
 
 // الجداول (Models)
