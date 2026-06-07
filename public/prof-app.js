@@ -99,6 +99,7 @@ generateDynamicQR(lat, lng);
 
             if (result.success) {
                 currentClassCode = className;
+                localStorage.setItem('currentClass', className);
                 alert('✅ تم إنشاء الكلاس بنجاح!');
                 classNameInput.value = "";
                 loadClasses();
@@ -111,7 +112,7 @@ generateDynamicQR(lat, lng);
     const excelUploadInput = document.getElementById('excelUpload');
     if (excelUploadInput) {
         excelUploadInput.addEventListener('change', (e) => {
-            if (!currentClassCode) {
+            if (!localStorage.getItem('currentClass')) {
                 alert("❌ يرجى إنشاء كلاس أولاً قبل رفع ملف الإكسل الخاص به!");
                 excelUploadInput.value = ""; 
                 return;
@@ -141,7 +142,7 @@ generateDynamicQR(lat, lng);
                 const response = await fetch('/import-excel-students', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ classCode: currentClassCode, studentEmails: studentEmails })
+           body: JSON.stringify({ classCode: localStorage.getItem('currentClass'), studentEmails: studentEmails })
         });
         
         const result = await response.json();
@@ -259,14 +260,14 @@ async function loadClasses() {
             const list = document.getElementById('classes-list');
             if(list) {
                 list.innerHTML = ''; // تصفير القائمة 
-                data.classes.forEach(course => {
-                    list.innerHTML += `
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-                            <h3 style="margin: 0; color: #2c3e50; font-size: 18px;">📘 ${course.name}</h3>
-                            <button class="secondary-btn" onclick="alert('سيتم فتح جلسة ${course.name} قريباً!')" style="margin: 0;">فتح الجلسة</button>
-                        </div>
-                    `;
-                });
+              data.classes.forEach(course => {
+    list.innerHTML += `
+        <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; color: #2c3e50; font-size: 18px;">📘 ${course.name}</h3>
+            <button class="secondary-btn" onclick="window.location.href='session.html?classCode=${course.name}'" style="margin: 0; background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 5px;">فتح الجلسة</button>
+        </div>
+    `;
+});
             }
         }
     } catch (error) {
