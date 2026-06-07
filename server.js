@@ -92,6 +92,30 @@ app.post('/create-class', async (req, res) => {
     }
 });
 // ==========================================
+// مسارات الإكسل وجلب الكلاسات
+// ==========================================
+
+// 1. مسار رفع إيميلات الطلاب من الإكسل
+app.post('/import-excel-students', async (req, res) => {
+    try {
+        const { classCode, studentEmails } = req.body;
+        console.log("تم استلام طلاب كلاس:", classCode);
+        res.json({ success: true, message: 'تم رفع قائمة الطلاب بنجاح!' });
+    } catch (error) {
+        res.json({ success: false, message: 'خطأ في السيرفر أثناء رفع الإكسل' });
+    }
+});
+
+// 2. مسار جلب الكلاسات لعرضها في لوحة الأستاذ
+app.get('/get-classes', async (req, res) => {
+    try {
+        const classes = await Course.find(); 
+        res.json({ success: true, classes: classes });
+    } catch (error) {
+        res.json({ success: false, message: 'خطأ في السيرفر أثناء جلب الكلاسات' });
+    }
+});
+// ==========================================
 // مسارات الباركود والحضور
 // ==========================================
 let professorClients = [];

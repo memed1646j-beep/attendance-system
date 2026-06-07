@@ -101,6 +101,7 @@ generateDynamicQR(lat, lng);
                 currentClassCode = className;
                 alert('✅ تم إنشاء الكلاس بنجاح!');
                 classNameInput.value = "";
+                loadClasses();
             } else {
                 alert(result.message);
             }
@@ -138,13 +139,17 @@ generateDynamicQR(lat, lng);
 
                 // إرسال للسيرفر
                 const response = await fetch('/import-excel-students', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ classCode: currentClassCode, studentEmails })
-                });
-                const result = await response.json();
-                alert(result.message);
-            };
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ classCode: currentClassCode, studentEmails: studentEmails })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('✅ ' + result.message);
+        } else {
+            alert('❌ ' + result.message);
+        } 
 
             reader.readAsArrayBuffer(file);
         });
@@ -243,3 +248,32 @@ async function createNewClass() {
         alert('خطأ في الاتصال بالسيرفر');
     }
 }
+// دالة جلب وعرض الكلاسات
+async function loadClasses() {
+    try {
+        const response = await fetch('/get-classes');
+        const data = await response.json();
+        
+        if (data.success) {
+            const list = document.getElementById('classes-list');
+            if(list) {
+                list.innerHTML = ''; // تصفير القائمة 
+                data.classes.forEach(course => {
+                    list.innerHTML += `
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                            <h3 style="margin: 0; color: #2c3e50; font-size: 18px;">📘 ${course.name}</h3>
+                            <button class="secondary-btn" onclick="alert('سيتم فتح جلسة ${course.name} قريباً!')" style="margin: 0;">فتح الجلسة</button>
+                        </div>
+                    `;
+                });
+            }
+        }
+    } catch (error) {
+        console.log('حدث خطأ أثناء تحميل الكلاسات:', error);
+    }
+}
+
+// استدعاء الدالة فور تحميل الصفحة
+document.addEventListener('DOMContentLoaded', () => {
+    loadClasses();
+});
