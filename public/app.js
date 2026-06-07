@@ -191,29 +191,3 @@ if (startSessionBtn && qrContainer) {
         });
     });
 }
-async function createNewClass() {
-    const className = document.getElementById('className').value;
-    
-    if (!className) {
-        alert('الرجاء كتابة اسم الكلاس (المادة) أولاً!');
-        return;
-    }
-
-    try {
-        const res = await fetch('/create-class', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ className: className })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            alert('✅ تم إنشاء الكلاس بنجاح!');
-            document.getElementById('className').value = ''; // تفريغ الحقل بعد الإنشاء
-        } else {
-            alert(data.message);
-        }
-    } catch (err) {
-        alert('خطأ في الاتصال بالسيرفر');
-    }
-}
