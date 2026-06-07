@@ -11,7 +11,7 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // الاتصال بقاعدة البيانات
-const dbURI = 'mongodb+srv://memed1646j_db_user:G3xG4E2NFjg@ac-wqnytuf-shard-00-00.5aw6zfp.mongodb.net:27017,ac-wqnytuf-shard-00-01.5aw6zfp.mongodb.net:27017,ac-wqnytuf-shard-00-02.5aw6zfp.mongodb.net:27017/?ssl=true&replicaSet=atlas-jednvm-shard-0&authSource=admin&appName=Cluster0';
+const dbURI = 'mongodb+srv://memed1646j_db_user:G3xG4E2NFjgSDaYY@ac-wqnytuf-shard-00-00.5aw6zfp.mongodb.net:27017,ac-wqnytuf-shard-00-01.5aw6zfp.mongodb.net:27017,ac-wqnytuf-shard-00-02.5aw6zfp.mongodb.net:27017/?ssl=true&replicaSet=atlas-jednvm-shard-0&authSource=admin&appName=Cluster0';
 mongoose.connect(dbURI).then(() => console.log('✅ متصل بقاعدة البيانات')).catch(err => console.log(err));
 
 // الجداول (Models)
