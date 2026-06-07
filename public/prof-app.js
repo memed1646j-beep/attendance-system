@@ -149,7 +149,8 @@ generateDynamicQR(lat, lng);
             alert('✅ ' + result.message);
         } else {
             alert('❌ ' + result.message);
-        } 
+        }
+    };
 
             reader.readAsArrayBuffer(file);
         });
