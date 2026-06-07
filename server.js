@@ -1,17 +1,15 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const http = require('http');
 
 const app = express();
-const server = http.createServer(app);
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
 // الاتصال بقاعدة البيانات
-const dbURI = 'mongodb+srv://memed1646j_db_user:G3xG4E2NFjgSDaYY@cluster0.5aw6zfp.mongodb.net/?appName=Cluster0';
+const dbURI = 'mongodb+srv://memed1646j_db_user:G3xG4E2NFjgSDaYY@cluster0.5aw6zfp.mongodb.net/attendance?retryWrites=true&w=majority&appName=Cluster0';
 mongoose.connect(dbURI).then(() => console.log('✅ متصل بقاعدة البيانات')).catch(err => console.log(err));
 
 // الجداول (Models)
@@ -83,45 +81,40 @@ app.post('/login-professor', async (req, res) => {
         res.json({ success: false, message: 'خطأ في السيرفر' });
     }
 });
-// مصفوفة نحفظ بيها اتصال الأستاذ
-let professorClients = [];
 
-// متغيرات حفظ الشفرة السرية واسم المادة الحالية
+// ==========================================
+// مسارات الباركود والحضور
+// ==========================================
+let professorClients = [];
 let currentLectureSecret = null; 
 let currentSubjectName = ""; 
 
-// 1. مسار توليد الباركود (يستلم اسم المادة من الأستاذ ويحفظه)
 app.get('/api/generate-qr', (req, res) => {
-    currentSubjectName = req.query.subject || "محاضرة عامة"; // حفظ اسم المادة
-    currentLectureSecret = "LEC_" + Math.random().toString(36).substr(2, 9); // شفرة عشوائية للمحاضرة
+    currentSubjectName = req.query.subject || "محاضرة عامة"; 
+    currentLectureSecret = "LEC_" + Math.random().toString(36).substr(2, 9); 
     
     console.log(`تم فتح جلسة جديدة لمادة: ${currentSubjectName} بشفرة: ${currentLectureSecret}`);
     res.json({ success: true, secret: currentLectureSecret });
 });
 
-// 2. مسار استقبال الباركود من الطالب (المعدل ليرجع اسم المادة)
 app.post('/api/scan', (req, res) => {
     const studentData = req.body;
 
-    // نقطة التفتيش والأمان
     if (!currentLectureSecret || studentData.qrCode !== currentLectureSecret) {
         return res.status(400).json({ success: false, message: "عفواً، هذا الباركود غير صالح أو انتهت صلاحيته!" });
     }
 
-    // إذا الشفرة صحيحة، ندز البيانات لايڤ لشاشة الأستاذ
     professorClients.forEach(client => {
         client.write(`data: ${JSON.stringify(studentData)}\n\n`);
     });
 
-    // الرد على الطالب بنجاح الحضور وإرسال اسم المادة له ليحفظها بسجله
     res.json({ 
         success: true, 
         message: "تم تسجيل الحضور بنجاح", 
-        subject: currentSubjectName // 👈 نرجع اسم المادة هنا للطالب
+        subject: currentSubjectName 
     });
 });
 
-// مسار للأستاذ حتى ينتظر التحديثات المباشرة (مثل ما هو بدون تغيير)
 app.get('/api/live-updates', (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -132,19 +125,20 @@ app.get('/api/live-updates', (req, res) => {
     });
 });
 
-
-// نحدد البورت: إذا الاستضافة انطتنا بورت نستخدمه، وإذا بالحاسبة نستخدم 3000
+// ==========================================
+// التشغيل والتصدير
+// ==========================================
 const PORT = process.env.PORT || 3000;
 
-// الشرط الذكي: يعمل الـ listen فقط إذا كنت تشغل الملف مباشرة على حاسبتك
 if (require.main === module) {
-    server.listen(PORT, '0.0.0.0', () => {
+    app.listen(PORT, '0.0.0.0', () => {
         console.log(`🚀 السيرفر يعمل على المنفذ ${PORT}`);
     });
 }
+
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/public/index.html');
 });
 
-// هذا هو الجزء الأهم لـ Vercel
-module.exports = server;
+// التصدير الصحيح لتعمل الاستضافة (Vercel)
+module.exports = app;
