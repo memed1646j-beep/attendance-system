@@ -53,7 +53,7 @@ async function handleStudent() {
     // أ- إذا الاسم "فارغ"، يعني الطالب يريد "دخول"
     if (!name) {
         try {
-            const res = await fetch('http://localhost:3000/login-student', {
+            const res = await fetch('/login-student', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ email, password })
@@ -73,7 +73,7 @@ async function handleStudent() {
     // ب- إذا الاسم "مكتوب"، يعني الطالب يريد "إنشاء حساب"
     else {
         try {
-            const res = await fetch('http://localhost:3000/register-student', {
+            const res = await fetch('/login-student',  {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ name, email, password, college, department })
@@ -106,7 +106,7 @@ async function handleProf() {
     // أ- إذا الاسم "فارغ" = تسجيل دخول
     if (!name) {
         try {
-            const res = await fetch('http://localhost:3000/login-professor', {
+            const res = await fetch('/login-professor', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ email, password })
@@ -123,7 +123,7 @@ async function handleProf() {
     // ب- إذا الاسم "مكتوب" = إنشاء حساب جديد
     else {
         try {
-            const res = await fetch('http://localhost:3000/register-professor', {
+            const res = await fetch('/register-professor', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ email, password }) // نرسل الإيميل والباسورد للسيرفر
