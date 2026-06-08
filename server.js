@@ -121,50 +121,60 @@ io.on('connection', (socket) => {
 
     // تم التعديل هنا: إضافة التحقق من الإكسل وجلب الاسم الحقيقي
     socket.on('scanQR', async (data) => { 
-        const { qrCode, studentEmail, time, lat, lng } = data;
+        try {
+            const { qrCode, studentEmail, time, lat, lng } = data;
 
-        // البحث عن المادة ومطابقة الباركود لمنع مسح صورة قديمة
-        let foundSubject = null;
-        let sessionInfo = null;
+            // البحث عن المادة ومطابقة الباركود لمنع مسح صورة قديمة
+            let foundSubject = null;
+            let sessionInfo = null;
 
-        for (const [subject, info] of Object.entries(activeSessions)) {
-            if (info.secret === qrCode) {
-                foundSubject = subject;
-                sessionInfo = info;
-                break;
+            for (const [subject, info] of Object.entries(activeSessions)) {
+                if (info.secret === qrCode) {
+                    foundSubject = subject;
+                    sessionInfo = info;
+                    break;
+                }
             }
+
+            // التحقق من الباركود والموقع
+            if (!foundSubject) {
+                return socket.emit('scanResult', { success: false, message: "❌ الباركود غير صالح أو قديم (يمنع الغش)!" });
+            }
+            if (!lat || !lng) {
+                return socket.emit('scanResult', { success: false, message: "❌ يرجى الموافقة على الموقع (GPS) لتأكيد حضورك بالقاعة!" });
+            }
+
+            // التحقق من وجود الطالب بقاعدة البيانات
+            const student = await Student.findOne({ email: studentEmail });
+            if (!student) {
+                return socket.emit('scanResult', { success: false, message: "❌ حسابك غير مسجل في النظام!" });
+            }
+
+            // التحقق من الإكسل بأمان (لمنع توقف السيرفر)
+            const course = await Course.findOne({ name: foundSubject });
+            
+            if (!course || !course.enrolledStudents || !course.enrolledStudents.includes(studentEmail)) {
+                return socket.emit('scanResult', { success: false, message: `❌ اسمك غير موجود في قائمة الإكسل المرفوعة لمادة: ${foundSubject}!` });
+            }
+
+           // إرسال الحضور لشاشة الأستاذ
+            if (sessionInfo && sessionInfo.profSocketId) {
+                io.to(sessionInfo.profSocketId).emit('studentAttended', {
+                    studentName: student.name || "طالب مسجل", 
+                    studentEmail: studentEmail, 
+                    time: time, 
+                    subject: foundSubject
+                });
+            }
+
+            // تأكيد النجاح للطالب
+            return socket.emit('scanResult', { success: true, subject: foundSubject, time: time, message: "تم تسجيل الحضور بنجاح ✅" });
+
+        } catch (error) {
+            console.error("خطأ داخلي أثناء السحب:", error);
+            // إرسال رسالة خطأ للطالب بدل التعليق
+            return socket.emit('scanResult', { success: false, message: "❌ حدث خطأ في السيرفر، يرجى إعادة المحاولة." });
         }
-
-        if (!foundSubject) {
-            return socket.emit('scanResult', { success: false, message: "❌ الباركود غير صالح أو قديم! (يمنع الغش)" });
-        }
-
-        // 1. التحقق من وجود الطالب في قاعدة البيانات الرئيسية
-        const student = await Student.findOne({ email: studentEmail });
-        if (!student) {
-            return socket.emit('scanResult', { success: false, message: "❌ حسابك غير مسجل في النظام!" });
-        }
-
-        // 2. التحقق من أن الطالب موجود في قائمة الإكسل الخاصة بهذا الكلاس تحديداً
-        const course = await Course.findOne({ name: foundSubject });
-        if (!course || !course.enrolledStudents.includes(studentEmail)) {
-            return socket.emit('scanResult', { success: false, message: `❌ اسمك غير موجود في قائمة الإكسل المرفوعة لمادة: ${foundSubject}!` });
-        }
-
-        if (!lat || !lng) {
-            return socket.emit('scanResult', { success: false, message: "❌ يرجى الموافقة على الموقع (GPS) لتأكيد حضورك بالقاعة!" });
-        }
-
-        // إرسال الحضور فوراً لشاشة الأستاذ (بإرسال الاسم من الداتا بيس لحل مشكلة الإيميل)
-        io.to(sessionInfo.profSocketId).emit('studentAttended', {
-            studentName: student.name, // الاسم الصريح 
-            studentEmail: studentEmail, 
-            time: time, 
-            subject: foundSubject
-        });
-
-        // تأكيد النجاح للطالب
-        socket.emit('scanResult', { success: true, subject: foundSubject, time: time, message: "تم تسجيل الحضور بنجاح ✅" });
     });
 });
 

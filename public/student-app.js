@@ -44,7 +44,6 @@ startScanBtn.addEventListener('click', () => {
         // تشغيل ميزة الزووم بأمان بعد تشغيل الكاميرا بـ 500 ملي ثانية لضمان استقرار البث
         setTimeout(() => {
             try {
-                // الوصول للبث الفعلي للكاميرا من داخل العنصر الـ video نفسه اللي بالصفحة
                 const videoElement = document.querySelector("#reader video");
                 if (videoElement && videoElement.srcObject) {
                     const localStream = videoElement.srcObject;
@@ -53,12 +52,10 @@ startScanBtn.addEventListener('click', () => {
                     if (videoTrack && typeof videoTrack.getCapabilities === 'function') {
                         const capabilities = videoTrack.getCapabilities();
                         
-                        // التأكد إذا كانت كاميرا الموبايل تدعم الزووم برمجياً
                         if (capabilities.zoom) {
                             const oldSlider = document.getElementById('zoom-slider-wrapper');
                             if (oldSlider) oldSlider.remove();
 
-                            // إنشاء واجهة شريط الزووم
                             const sliderWrapper = document.createElement('div');
                             sliderWrapper.id = 'zoom-slider-wrapper';
                             sliderWrapper.style.cssText = 'margin-top: 15px; text-align: center; background: #edf2f7; padding: 10px; border-radius: 8px; width: 100%; box-sizing: border-box;';
@@ -69,7 +66,6 @@ startScanBtn.addEventListener('click', () => {
                             
                             document.getElementById('reader').after(sliderWrapper);
 
-                            // ربط شريط السحب للتحكم بالزووم
                             document.getElementById('zoom-range').addEventListener('input', (e) => {
                                 videoTrack.applyConstraints({
                                     advanced: [{ zoom: parseFloat(e.target.value) }]
@@ -83,7 +79,7 @@ startScanBtn.addEventListener('click', () => {
             } catch (zoomError) {
                 console.log("فشل تهيئة الزووم بأمان:", zoomError);
             }
-        }, 500); // تأخير بسيط بنصف ثانية لضمان تحميل الفيديو بالكامل
+        }, 500); 
         
     })
     .catch(err => { 
@@ -91,65 +87,36 @@ startScanBtn.addEventListener('click', () => {
         scanResultDiv.innerHTML = `<span style="color: red;">تعذر فتح الكاميرا! تأكد من إعطاء الصلاحيات.</span>`; 
         resetButtons(); 
     });
-stopScanBtn.addEventListener('click', () => {
-    stopScanner();
-    scanResultDiv.innerHTML = '<span style="color: #718096;">تم إيقاف الكاميرا.</span>';
-});
+ // <--- هذا القوس جداً مهم! يقفل زر الكاميرا بالكامل ويفصله عن التنقل
 
-// عند مسح الباركود بنجاح
-function onScanSuccess(decodedText, decodedResult) {
-    stopScanner();
-    scanResultDiv.innerHTML = `<span style="color: blue;">⏳ جاري إرسال البيانات والتحقق من الموقع وقائمة الإكسل...</span>`;
-
-    const loggedInUser = localStorage.getItem('currentUser');
-    if (!loggedInUser) return scanResultDiv.innerHTML = `<span style="color: red;">❌ خطأ: لم يتم العثور على بيانات الطالب.</span>`;
-    
-    const studentData = JSON.parse(loggedInUser);
-    
-    // جلب الوقت الحالي بالدقيقة والدقة
-    const now = new Date();
-    const exactTime = now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
-
-    // طلب الموقع (GPS) لمنع الغش
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-                // نرسل الإيميل فقط، السيرفر سيقوم بمطابقته مع الإكسل وجلب الاسم الحقيقي
-                socket.emit('scanQR', {
-                    qrCode: decodedText,              
-                    studentEmail: studentData.email,  
-                    time: exactTime,
-                    lat: position.coords.latitude,
-                    lng: position.coords.longitude
-                });
-            },
-            (error) => {
-                scanResultDiv.innerHTML = `<span style="color: red;">❌ يرجى تفعيل الـ GPS (الموقع) لتسجيل حضورك بالقاعة!</span>`;
-            }
-        );
-    } else {
-        scanResultDiv.innerHTML = `<span style="color: red;">متصفحك لا يدعم تحديد الموقع.</span>`;
-    }
-}
-
-function onScanFailure(error) {} // تجاهل الأخطاء المستمرة للكاميرا
-
+// =========================================
+// دوال إيقاف الكاميرا والريست
+// =========================================
 function stopScanner() { 
     if (html5QrcodeScanner) { 
         html5QrcodeScanner.stop().then(() => {
-            // حذف شريط الزووم عند إيقاف الكاميرا
             const sliderWrapper = document.getElementById('zoom-slider-wrapper');
             if (sliderWrapper) sliderWrapper.remove();
             resetButtons();
         }).catch(err => console.log(err)); 
     } 
 }
+
+function onScanFailure(error) {} // تجاهل الأخطاء المستمرة للكاميرا
+
 function resetButtons() { 
     startScanBtn.style.display = 'inline-block'; 
     stopScanBtn.style.display = 'none'; 
 }
 
-// الرد من السيرفر بنجاح أو فشل المسح (مثل عدم وجود الطالب بالإكسل)
+stopScanBtn.addEventListener('click', () => {
+    stopScanner();
+    scanResultDiv.innerHTML = '<span style="color: #718096;">تم إيقاف الكاميرا.</span>';
+});
+
+// =========================================
+// استقبال الرد من السيرفر (ناجح أو فاشل بسبب الإكسل)
+// =========================================
 socket.on('scanResult', (data) => {
     if(data.success) {
         scanResultDiv.innerHTML = `<span style="color: green; font-weight: bold;">${data.message} <br> مادة: ${data.subject} | الساعة: ${data.time}</span>`;
@@ -169,7 +136,9 @@ socket.on('scanResult', (data) => {
     }
 });
 
-// نظام التنقل
+// =========================================
+// نظام التنقل (الآن يعمل 100% بدون تداخل)
+// =========================================
 const navScan = document.getElementById('nav-scan');
 const navHistory = document.getElementById('nav-history');
 const navProfile = document.getElementById('nav-profile');
@@ -178,25 +147,30 @@ const historySection = document.getElementById('historySection');
 const profileSection = document.getElementById('profileSection');
 
 function switchTab(activeBtn, activeSection) {
+    if(!scannerCard || !historySection || !profileSection) return;
     [scannerCard, historySection, profileSection].forEach(sec => sec.style.display = 'none');
     document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
     activeSection.style.display = 'block';
     activeBtn.classList.add('active');
 }
 
-navScan.addEventListener('click', () => switchTab(navScan, scannerCard));
-navHistory.addEventListener('click', () => switchTab(navHistory, historySection));
-navProfile.addEventListener('click', () => switchTab(navProfile, profileSection));
+if(navScan) navScan.addEventListener('click', () => switchTab(navScan, scannerCard));
+if(navHistory) navHistory.addEventListener('click', () => switchTab(navHistory, historySection));
+if(navProfile) navProfile.addEventListener('click', () => switchTab(navProfile, profileSection));
 
-document.getElementById('logoutBtn').addEventListener('click', () => {
-    if(confirm('هل أنت متأكد من تسجيل الخروج؟')) { 
-        localStorage.removeItem('currentUser'); 
-        window.location.href = 'index.html'; 
-    }
-});
+if(document.getElementById('logoutBtn')) {
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        if(confirm('هل أنت متأكد من تسجيل الخروج؟')) { 
+            localStorage.removeItem('currentUser'); 
+            window.location.href = 'index.html'; 
+        }
+    });
+}
 
 function displayStudentHistory() {
     const myHistory = JSON.parse(localStorage.getItem('studentHistory')) || [];
+    if (!historySection) return;
+
     if (myHistory.length === 0) {
         historySection.innerHTML = `<h3 style="text-align: center; color: #718096; margin-top: 20px;">سجل الحضور فارغ 📅</h3>`;
         return;
@@ -208,7 +182,7 @@ function displayStudentHistory() {
                 <tr><th>المادة</th><th>التاريخ</th><th>الوقت</th><th>الحالة</th></tr>
             </thead><tbody>`;
 
-    myHistory.reverse().forEach(item => { 
+    [...myHistory].reverse().forEach(item => { 
         tableHtml += `<tr style="border-bottom: 1px solid #edf2f7;">
             <td style="padding: 12px; font-weight: bold; color: #2b6cb0;">${item.subject}</td>
             <td style="padding: 12px; color: #4a5568;">${item.date}</td>
