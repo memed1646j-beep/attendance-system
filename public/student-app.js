@@ -41,55 +41,56 @@ startScanBtn.addEventListener('click', () => {
     )
     scanResultDiv.innerHTML = ''; // تصفير رسالة التحميل
 
-        try {
-            // جلب بث الكاميرا الشغالة حالياً بشكل مباشر وآمن
-            const localStream = html5QrcodeScanner.localMediaStream;
-            if (localStream) {
-                const videoTrack = localStream.getVideoTracks()[0];
-                
-                if (videoTrack && typeof videoTrack.getCapabilities === 'function') {
-                    const capabilities = videoTrack.getCapabilities();
+        // تشغيل ميزة الزووم بأمان بعد تشغيل الكاميرا بـ 500 ملي ثانية لضمان استقرار البث
+        setTimeout(() => {
+            try {
+                // الوصول للبث الفعلي للكاميرا من داخل العنصر الـ video نفسه اللي بالصفحة
+                const videoElement = document.querySelector("#reader video");
+                if (videoElement && videoElement.srcObject) {
+                    const localStream = videoElement.srcObject;
+                    const videoTrack = localStream.getVideoTracks()[0];
                     
-                    // التأكد إذا كانت الكاميرا تدعم الزووم
-                    if (capabilities.zoom) {
-                        const oldSlider = document.getElementById('zoom-slider-wrapper');
-                        if (oldSlider) oldSlider.remove();
-
-                        // إنشاء واجهة شريط الزووم
-                        const sliderWrapper = document.createElement('div');
-                        sliderWrapper.id = 'zoom-slider-wrapper';
-                        sliderWrapper.style.cssText = 'margin-top: 15px; text-align: center; background: #edf2f7; padding: 10px; border-radius: 8px;';
-                        sliderWrapper.innerHTML = `
-                            <label style="font-weight: bold; color: #2b6cb0; display: block; margin-bottom: 5px;">🔍 تكبير الصورة (Zoom)</label>
-                            <input type="range" id="zoom-range" min="${capabilities.zoom.min}" max="${capabilities.zoom.max}" step="${capabilities.zoom.step || 0.1}" value="${capabilities.zoom.current || capabilities.zoom.min}" style="width: 80%; accent-color: #2b6cb0;">
-                        `;
+                    if (videoTrack && typeof videoTrack.getCapabilities === 'function') {
+                        const capabilities = videoTrack.getCapabilities();
                         
-                        document.getElementById('reader').after(sliderWrapper);
+                        // التأكد إذا كانت كاميرا الموبايل تدعم الزووم برمجياً
+                        if (capabilities.zoom) {
+                            const oldSlider = document.getElementById('zoom-slider-wrapper');
+                            if (oldSlider) oldSlider.remove();
 
-                        // ربط شريط السحب للتحكم بالزووم
-                        document.getElementById('zoom-range').addEventListener('input', (e) => {
-                            videoTrack.applyConstraints({
-                                advanced: [{ zoom: parseFloat(e.target.value) }]
-                            }).catch(err => console.log("خطأ في تطبيق الزووم:", err));
-                        });
-                    } else {
-                        console.log("هذه الكاميرا لا تدعم الزووم برمجياً.");
+                            // إنشاء واجهة شريط الزووم
+                            const sliderWrapper = document.createElement('div');
+                            sliderWrapper.id = 'zoom-slider-wrapper';
+                            sliderWrapper.style.cssText = 'margin-top: 15px; text-align: center; background: #edf2f7; padding: 10px; border-radius: 8px; width: 100%; box-sizing: border-box;';
+                            sliderWrapper.innerHTML = `
+                                <label style="font-weight: bold; color: #2b6cb0; display: block; margin-bottom: 5px; font-size: 14px;">🔍 تكبير الصورة (Zoom)</label>
+                                <input type="range" id="zoom-range" min="${capabilities.zoom.min}" max="${capabilities.zoom.max}" step="${capabilities.zoom.step || 0.1}" value="${capabilities.zoom.current || capabilities.zoom.min}" style="width: 85%; accent-color: #2b6cb0; cursor: pointer;">
+                            `;
+                            
+                            document.getElementById('reader').after(sliderWrapper);
+
+                            // ربط شريط السحب للتحكم بالزووم
+                            document.getElementById('zoom-range').addEventListener('input', (e) => {
+                                videoTrack.applyConstraints({
+                                    advanced: [{ zoom: parseFloat(e.target.value) }]
+                                }).catch(err => console.log("خطأ في تطبيق الزووم:", err));
+                            });
+                        } else {
+                            console.log("هذه الكاميرا أو المتصفح لا يدعم الزووم برمجياً.");
+                        }
                     }
                 }
+            } catch (zoomError) {
+                console.log("فشل تهيئة الزووم بأمان:", zoomError);
             }
-        } catch (zoomError) {
-            console.log("فشل تهيئة الزووم:", zoomError);
-        }
+        }, 500); // تأخير بسيط بنصف ثانية لضمان تحميل الفيديو بالكامل
         
-        // ------------------------------
     })
     .catch(err => { 
+        console.error(err);
         scanResultDiv.innerHTML = `<span style="color: red;">تعذر فتح الكاميرا! تأكد من إعطاء الصلاحيات.</span>`; 
         resetButtons(); 
     });
-  
-
-
 stopScanBtn.addEventListener('click', () => {
     stopScanner();
     scanResultDiv.innerHTML = '<span style="color: #718096;">تم إيقاف الكاميرا.</span>';
