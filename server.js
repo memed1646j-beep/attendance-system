@@ -104,10 +104,16 @@ io.on('connection', (socket) => {
         socket.emit('sessionUpdated', { success: true, secret: secretToken, subject });
     });
 
-    // 2. الطالب يمسح الباركود
-    socket.on('scanQR', (data) => {
-        const { qrCode, studentName, studentEmail, time, lat, lng } = data;
+    socket.on('scanQR', async (data) => { // 1. أضف async هنا
+    const { qrCode, studentName, studentEmail, time, lat, lng } = data;
 
+    // --- (أضف هذا الجزء الجديد) ---
+    // التحقق من وجود الطالب في قاعدة البيانات
+    const student = await Student.findOne({ email: studentEmail });
+    if (!student) {
+        return socket.emit('scanResult', { success: false, message: "❌ اسمك غير موجود في قائمة الحضور الرسمية!" });
+    }
+    // ----------------------------
         // البحث عن المادة ومطابقة الباركود لمنع مسح صورة قديمة
         let foundSubject = null;
         let sessionInfo = null;
@@ -130,7 +136,7 @@ io.on('connection', (socket) => {
 
         // إرسال الحضور فوراً لشاشة الأستاذ
         io.to(sessionInfo.profSocketId).emit('studentAttended', {
-            studentName, studentEmail, time, subject: foundSubject
+            studentName:studentName, studentEmail:studentEmail, time:time, subject: foundSubject
         });
 
         // تأكيد النجاح للطالب
