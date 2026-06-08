@@ -39,7 +39,7 @@ startScanBtn.addEventListener('click', () => {
         onScanSuccess, 
         onScanFailure
     )
-    .scanResultDiv.innerHTML = ''; // تصفير رسالة التحميل
+    scanResultDiv.innerHTML = ''; // تصفير رسالة التحميل
 
         try {
             // جلب بث الكاميرا الشغالة حالياً بشكل مباشر وآمن
@@ -86,9 +86,8 @@ startScanBtn.addEventListener('click', () => {
     .catch(err => { 
         scanResultDiv.innerHTML = `<span style="color: red;">تعذر فتح الكاميرا! تأكد من إعطاء الصلاحيات.</span>`; 
         resetButtons(); 
-    
-});
-        
+    });
+  
 
 
 stopScanBtn.addEventListener('click', () => {
