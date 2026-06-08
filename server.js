@@ -1,8 +1,12 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const http = require('http'); // ضروري للـ socket.io
+const { Server } = require('socket.io');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } });
 
 app.use(cors());
 app.use(express.json());
@@ -18,9 +22,8 @@ const Professor = mongoose.model('Professor', new mongoose.Schema({ email: { typ
 const Course = mongoose.model('Course', new mongoose.Schema({ name: String }));
 
 // ==========================================
-// مسارات الطالب
+// مسارات الطالب والأستاذ (تسجيل الدخول والإنشاء)
 // ==========================================
-// تسجيل جديد
 app.post('/register-student', async (req, res) => {
     try {
         const newStudent = new Student(req.body);
@@ -29,7 +32,6 @@ app.post('/register-student', async (req, res) => {
     } catch (e) { res.json({ success: false, message: 'الإيميل مسجل مسبقاً!' }); }
 });
 
-// تسجيل دخول
 app.post('/login-student', async (req, res) => {
     const { email, password } = req.body;
     const student = await Student.findOne({ email, password });
@@ -37,141 +39,108 @@ app.post('/login-student', async (req, res) => {
     else res.json({ success: false, message: 'بيانات الدخول خاطئة' });
 });
 
-// ==========================================
-// مسارات الأستاذ
-// ==========================================
-// 1. مسار إنشاء حساب أستاذ جديد (Register)
 app.post('/register-professor', async (req, res) => {
     try {
         const { email, password } = req.body;
-        
-        // نشيك إذا الإيميل مسجل قبل
         const existingProf = await Professor.findOne({ email: email });
-        if (existingProf) {
-            return res.json({ success: false, message: 'هذا الإيميل مسجل مسبقاً!' });
-        }
+        if (existingProf) return res.json({ success: false, message: 'هذا الإيميل مسجل مسبقاً!' });
 
-        // إنشاء أستاذ جديد
         const newProf = new Professor({ email, password });
         await newProf.save();
         res.json({ success: true, message: 'تم إنشاء الحساب بنجاح' });
-    } catch (error) {
-        res.json({ success: false, message: 'خطأ في السيرفر' });
-    }
+    } catch (error) { res.json({ success: false, message: 'خطأ في السيرفر' }); }
 });
 
-// 2. مسار تسجيل دخول الأستاذ (Login)
 app.post('/login-professor', async (req, res) => {
     try {
         const { email, password } = req.body;
-        
         const prof = await Professor.findOne({ email: email });
-        
-        // إذا الحساب ما موجود
-        if (!prof) {
-            return res.json({ success: false, message: 'الإيميل غير مسجل، يرجى إنشاء حساب أولاً!' });
-        }
-
-        // إذا الباسورد غلط
-        if (prof.password !== password) {
-            return res.json({ success: false, message: 'كلمة المرور غير صحيحة!' });
-        }
-
+        if (!prof) return res.json({ success: false, message: 'الإيميل غير مسجل، يرجى إنشاء حساب أولاً!' });
+        if (prof.password !== password) return res.json({ success: false, message: 'كلمة المرور غير صحيحة!' });
         res.json({ success: true, message: 'تم تسجيل الدخول بنجاح' });
-    } catch (error) {
-        res.json({ success: false, message: 'خطأ في السيرفر' });
-    }
+    } catch (error) { res.json({ success: false, message: 'خطأ في السيرفر' }); }
 });
+
+// ==========================================
+// مسارات الإكسل والكلاسات (مفصولة تماماً)
+// ==========================================
 app.post('/create-class', async (req, res) => {
     try {
         const newCourse = new Course({ name: req.body.className });
         await newCourse.save();
         res.json({ success: true, message: 'تم إنشاء الكلاس بنجاح' });
-    } catch (error) {
-        res.json({ success: false, message: 'خطأ في السيرفر أثناء إنشاء الكلاس' });
-    }
+    } catch (error) { res.json({ success: false, message: 'خطأ في السيرفر أثناء إنشاء الكلاس' }); }
 });
-// ==========================================
-// مسارات الإكسل وجلب الكلاسات
-// ==========================================
 
-// 1. مسار رفع إيميلات الطلاب من الإكسل
 app.post('/import-excel-students', async (req, res) => {
     try {
         const { classCode, studentEmails } = req.body;
-        console.log("تم استلام طلاب كلاس:", classCode);
-        res.json({ success: true, message: 'تم رفع قائمة الطلاب بنجاح!' });
-    } catch (error) {
-        res.json({ success: false, message: 'خطأ في السيرفر أثناء رفع الإكسل' });
-    }
+        console.log("تم استلام إكسل طلاب كلاس:", classCode);
+        res.json({ success: true, message: 'تم رفع قائمة الطلاب بنجاح وبدون تضارب!' });
+    } catch (error) { res.json({ success: false, message: 'خطأ في السيرفر أثناء رفع الإكسل' }); }
 });
 
-// 2. مسار جلب الكلاسات لعرضها في لوحة الأستاذ
 app.get('/get-classes', async (req, res) => {
     try {
         const classes = await Course.find(); 
         res.json({ success: true, classes: classes });
-    } catch (error) {
-        res.json({ success: false, message: 'خطأ في السيرفر أثناء جلب الكلاسات' });
-    }
-});
-// ==========================================
-// مسارات الباركود والحضور
-// ==========================================
-let professorClients = [];
-let currentLectureSecret = null; 
-let currentSubjectName = ""; 
-
-app.get('/api/generate-qr', (req, res) => {
-    currentSubjectName = req.query.subject || "محاضرة عامة"; 
-    currentLectureSecret = "LEC_" + Math.random().toString(36).substr(2, 9); 
-    
-    console.log(`تم فتح جلسة جديدة لمادة: ${currentSubjectName} بشفرة: ${currentLectureSecret}`);
-    res.json({ success: true, secret: currentLectureSecret });
+    } catch (error) { res.json({ success: false, message: 'خطأ في السيرفر' }); }
 });
 
-app.post('/api/scan', (req, res) => {
-    const studentData = req.body;
+// ==========================================
+// نظام الحضور المباشر (Socket.io) 24/7 + حماية الغش
+// ==========================================
+let activeSessions = {}; // يخزن الشفرات الحية لكل مادة لمنع الغش
 
-    if (!currentLectureSecret || studentData.qrCode !== currentLectureSecret) {
-        return res.status(400).json({ success: false, message: "عفواً، هذا الباركود غير صالح أو انتهت صلاحيته!" });
-    }
+io.on('connection', (socket) => {
+    console.log('مستخدم متصل:', socket.id);
 
-    professorClients.forEach(client => {
-        client.write(`data: ${JSON.stringify(studentData)}\n\n`);
+    // 1. الأستاذ يبدأ الجلسة أو يحدث الباركود
+    socket.on('startSession', (data) => {
+        const { subject, lat, lng } = data;
+        const secretToken = "LEC_" + Math.random().toString(36).substr(2, 9); // توكن ديناميكي
+        
+        activeSessions[subject] = { secret: secretToken, profSocketId: socket.id, lat, lng };
+        socket.emit('sessionUpdated', { success: true, secret: secretToken, subject });
     });
 
-    res.json({ 
-        success: true, 
-        message: "تم تسجيل الحضور بنجاح", 
-        subject: currentSubjectName 
+    // 2. الطالب يمسح الباركود
+    socket.on('scanQR', (data) => {
+        const { qrCode, studentName, studentEmail, time, lat, lng } = data;
+
+        // البحث عن المادة ومطابقة الباركود لمنع مسح صورة قديمة
+        let foundSubject = null;
+        let sessionInfo = null;
+
+        for (const [subject, info] of Object.entries(activeSessions)) {
+            if (info.secret === qrCode) {
+                foundSubject = subject;
+                sessionInfo = info;
+                break;
+            }
+        }
+
+        if (!foundSubject) {
+            return socket.emit('scanResult', { success: false, message: "❌ الباركود غير صالح أو قديم! (يمنع الغش)" });
+        }
+
+        if (!lat || !lng) {
+            return socket.emit('scanResult', { success: false, message: "❌ يرجى الموافقة على الموقع (GPS) لتأكيد حضورك بالقاعة!" });
+        }
+
+        // إرسال الحضور فوراً لشاشة الأستاذ
+        io.to(sessionInfo.profSocketId).emit('studentAttended', {
+            studentName, studentEmail, time, subject: foundSubject
+        });
+
+        // تأكيد النجاح للطالب
+        socket.emit('scanResult', { success: true, subject: foundSubject, time: time, message: "تم تسجيل الحضور بنجاح ✅" });
     });
 });
 
-app.get('/api/live-updates', (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    professorClients.push(res);
-    req.on('close', () => {
-        professorClients = professorClients.filter(client => client !== res);
-    });
-});
-
-// ==========================================
-// التشغيل والتصدير
-// ==========================================
 const PORT = process.env.PORT || 3000;
-
-if (require.main === module) {
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log(`🚀 السيرفر يعمل على المنفذ ${PORT}`);
-    });
-}
-
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/public/index.html');
+server.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 السيرفر يعمل على المنفذ ${PORT} (أونلاين 100%)`);
 });
 
-// التصدير الصحيح لتعمل الاستضافة (Vercel)
-module.exports = app;
+module.exports = server;

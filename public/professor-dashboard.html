@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>لوحة الأستاذ - نظام الحضور</title>
     <link rel="stylesheet" href="style.css">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body class="dashboard-body">
 
-    <!-- 1. الشريط العلوي الثابت -->
     <header class="dash-header">
         <div class="header-titles">
             <h2>نظام الحضور الذكي</h2>
@@ -17,50 +19,38 @@
         <div class="user-info">
             <span id="profNameDisplay">مرحباً بك في لوحة التحكم</span>
             <button class="nav-btn logout-btn" onclick="logout()">
-    <span class="icon">🚪</span> تسجيل الخروج
-</button>
+                <span class="icon">🚪</span> تسجيل الخروج
+            </button>
         </div>
     </header>
 
-    <!-- 2. الشريط السفلي مال موبايل -->
     <nav class="bottom-nav">
         <button class="nav-btn active" data-target="qr-section">
-            <span class="icon">📷</span>
-            <span class="text">جلسة QR</span>
+            <span class="icon">📷</span><span class="text">جلسة QR</span>
         </button>
         <button class="nav-btn" data-target="classes-section">
-            <span class="icon">📚</span>
-            <span class="text">الكلاسات</span>
+            <span class="icon">📚</span><span class="text">الكلاسات</span>
         </button>
         <button class="nav-btn" data-target="live-section">
-            <span class="icon">👁️</span>
-            <span class="text">المراقبة</span>
+            <span class="icon">👁️</span><span class="text">المراقبة</span>
         </button>
         <button class="nav-btn" data-target="profile-section">
-            <span class="icon">⚙️</span>
-            <span class="text">الملف</span>
+            <span class="icon">⚙️</span><span class="text">الملف</span>
         </button>
     </nav>
 
-    <!-- 3. حاوية المحتوى الأساسي -->
     <div class="dashboard-wrapper">
         <main class="main-content">
             <section id="qr-section" class="dash-section active">
-<div id="qrContainer" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; margin-bottom: 20px; padding: 25px; background-color: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-    
-    <h3 style="margin: 0; color: #2d3748;">توليد رمز الدخول (QR Code)</h3>
-    <p style="margin: 0; font-size: 14px; color: #4a5568;">الرجاء كتابة اسم المادة أولاً لبدء المحاضرة:</p>
-    
-    <input type="text" id="subjectNameInput" placeholder="اكتب اسم المادة هنا..." style="padding: 12px; width: 100%; max-width: 300px; border: 2px solid #cbd5e0; border-radius: 5px; text-align: center; font-size: 16px; box-sizing: border-box; outline: none; transition: border-color 0.3s;">
-    
-    <button id="startSessionBtn" style="padding: 12px 25px; background-color: #2b6cb0; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; width: 100%; max-width: 300px; transition: background-color 0.3s;">
-        📍 بدء الجلسة وتوليد الباركود
-    </button>
-    
-    <div id="qrImageWrapper" style="margin-top: 15px; width: 100%;"></div>
-    
-</div>
-            
+                <div id="qrContainer" style="display: flex; flex-direction: column; align-items: center; gap: 15px; padding: 25px; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
+                    <h3 style="color: #2d3748;">توليد رمز الدخول (QR Code)</h3>
+                    <p style="font-size: 14px; color: #4a5568;">الرجاء كتابة اسم المادة أولاً لبدء المحاضرة:</p>
+                    <input type="text" id="subjectNameInput" placeholder="اكتب اسم المادة هنا..." style="padding: 12px; width: 100%; max-width: 300px; border: 2px solid #cbd5e0; border-radius: 5px; text-align: center;">
+                    <button id="startSessionBtn" style="padding: 12px 25px; background-color: #2b6cb0; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; max-width: 300px;">
+                        📍 بدء الجلسة وتوليد الباركود
+                    </button>
+                    <div id="qrImageWrapper" style="margin-top: 15px; width: 100%;"></div>
+                </div>
             </section>
 
             <section id="classes-section" class="dash-section">
@@ -68,201 +58,66 @@
                 <div class="action-card">
                     <h4>إنشاء كلاس جديد</h4>
                     <input type="text" id="className" placeholder="اسم المادة (مثال: شبكات الحاسوب)">
-                    <button class="main-btn">إنشاء ➕</button>
+                    <button class="main-btn" onclick="createNewClass()">إنشاء ➕</button>
                 </div>
-                <div id="classes-list" style="margin-top: 20px;">
-    </div>
+                <div id="classes-list" style="margin-top: 20px;"></div>
                 <div class="action-card mt-20">
                     <h4>رفع قائمة الطلاب (Excel)</h4>
                     <button class="secondary-btn">📥 تحميل قالب الإكسل</button>
                     <input type="file" id="excelUpload" accept=".xlsx, .xls" style="margin-top: 10px;">
                 </div>
             </section>
-<!-- قسم المراقبة الحية -->
-        <section id="live-section" class="dash-section">
-            <div class="section-header">
-                <h3>المراقبة الحية 👁️</h3>
-                <p>الطلاب الذين سجلوا حضورهم في هذه الجلسة سيظهرون هنا تلقائياً</p>
-            </div>
-            <div style="margin-bottom: 15px; text-align: left;">
-    <button class="secondary-btn" style="background-color: #2b6cb0; font-weight: bold;" onclick="exportToExcel('attendanceTable', 'سجل_الحضور')">
-        📊 تصدير إلى Excel
-    </button>
-</div>
-<div style="margin: 20px 0; padding: 15px; background-color: #edf2f7; border-radius: 8px; border: 1px solid #cbd5e0;">
-    <h4 style="margin-top: 0; margin-bottom: 10px;">تسجيل حضور يدوي (للطوارئ) ✍️</h4>
-    <input type="text" id="manualStudentName" placeholder="اكتب اسم الطالب هنا..." style="padding: 8px; width: 250px; border: 1px solid #ccc; border-radius: 5px;">
-    <button onclick="addManualAttendance()" style="padding: 8px 15px; background-color: #48bb78; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
-        إضافة حضور
-    </button>
-</div>
-            <div class="table-container">
-                <table id="attendanceTable" class="live-table">
-                    <thead>
-                        <tr>
-                            <th>ت</th>
-                            <th>اسم الطالب / الإيميل</th>
-                            <th>وقت تسجيل الدخول</th>
-                            <th>الحالة</th>
-                            <th>الاجرائات</th>
-                      </tr>
-    </thead>
-    <tbody id="liveAttendanceBody">
-        <tr id="emptyMessageRow">
-            <td colspan="4" style="text-align: center; color: #718096; padding: 20px;">
-                لم يقم أي طالب بتسجيل الحضور حتى الآن 📭
-            </td>
-        </tr>
-    </tbody>
-                </table>
-            </div>
-            
+
+            <section id="live-section" class="dash-section">
+                <div class="section-header">
+                    <h3>المراقبة الحية 👁️</h3>
+                    <p>الطلاب المسجلين سيظهرون هنا فوراً (أونلاين)</p>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <button class="secondary-btn" style="background-color: #2b6cb0; font-weight: bold;" onclick="exportToExcel('attendanceTable', 'سجل_الحضور')">
+                        📊 تصدير إلى Excel
+                    </button>
+                </div>
+                <div style="margin: 20px 0; padding: 15px; background-color: #edf2f7; border-radius: 8px;">
+                    <h4 style="margin-bottom: 10px;">تسجيل حضور يدوي ✍️</h4>
+                    <input type="text" id="manualStudentName" placeholder="اكتب اسم الطالب..." style="padding: 8px; border-radius: 5px;">
+                    <button onclick="addManualAttendance()" style="padding: 8px 15px; background-color: #48bb78; color: white; border: none; border-radius: 5px;">إضافة حضور</button>
+                </div>
+                <div class="table-container">
+                    <table id="attendanceTable" class="live-table">
+                        <thead>
+                            <tr><th>ت</th><th>اسم الطالب / الإيميل</th><th>المادة</th><th>وقت الحضور</th><th>الإجراءات</th></tr>
+                        </thead>
+                        <tbody id="liveAttendanceBody">
+                            <tr id="emptyMessageRow"><td colspan="5" style="text-align: center; color: #718096; padding: 20px;">بانتظار مسح الطلاب للباركود... 📭</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </section>
 
             <section id="profile-section" class="dash-section">
                 <h3>إعدادات الملف الشخصي</h3>
                 <div class="action-card">
-                    <input type="text" placeholder="الاسم الكامل">
-                    <input type="email" placeholder="البريد الإلكتروني">
-                    <input type="password" placeholder="كلمة المرور الجديدة">
-                    <button class="main-btn">💾 حفظ التعديلات</button>
+                    <p>سيتم تفعيل الإعدادات قريباً</p>
                 </div>
             </section>
-
         </main>
     </div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
     <script src="prof-app.js"></script>
     <script>
-    function logout() {
-        // نطلع رسالة التأكيد
-        const isConfirmed = confirm("هل أنت متأكد أنك تريد الخروج من الحساب؟");
-
-        // إذا ضغط موافق
-        if (isConfirmed) {
-            // نمسح هويته من الذاكرة
-            localStorage.removeItem('currentUser');
-            // نرجعه لصفحة الدخول
-            window.location.href = 'index.html'; 
-        }
-    }
-</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<script>
-    function exportToExcel(tableID, filename) {
-        let table = document.getElementById(tableID);
-        
-        if (!table) {
-            alert("لا يوجد جدول لتصديره!");
-            return;
-        }
-
-        let workbook = XLSX.utils.table_to_book(table, {sheet: "قائمة الحضور"});
-        let fullFileName = filename + '.xlsx';
-        XLSX.writeFile(workbook, fullFileName);
-    }
-</script>
-<script>
-    // فتح خط مباشر مع السيرفر لسماع التحديثات
-    // 1. كود استقبال الحضور الآلي (ضفنا بي زر الإلغاء)
-    const eventSource = new EventSource('/api/live-updates');
-    
-    eventSource.onmessage = function(event) {
-        const studentData = JSON.parse(event.data);
-        
-        const emptyRow = document.getElementById('emptyMessageRow');
-        if (emptyRow) emptyRow.remove();
-
-        const tbody = document.getElementById('liveAttendanceBody');
-        const currentStudentsCount = tbody.getElementsByTagName('tr').length + 1;
-        
-        const newRow = document.createElement('tr');
-        // ضفنا خانة زر الإلغاء بالأخير
-        newRow.innerHTML = `
-            <td>${currentStudentsCount}</td>
-            <td>${studentData.studentName} / ${studentData.studentEmail}</td>
-            <td>${studentData.time}</td>
-            <td style="color: green; font-weight: bold;">حاضر ✅</td>
-            <td><button onclick="this.closest('tr').remove()" style="background-color: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">إلغاء ❌</button></td>
-        `;
-        tbody.appendChild(newRow);
-    };
-
-    // 2. دالة التسجيل اليدوي من قبل الأستاذ
-    function addManualAttendance() {
-        const nameInput = document.getElementById('manualStudentName');
-        const studentName = nameInput.value.trim();
-
-        if (!studentName) {
-            alert("الرجاء كتابة اسم الطالب أولاً!");
-            return;
-        }
-
-        const emptyRow = document.getElementById('emptyMessageRow');
-        if (emptyRow) emptyRow.remove();
-
-        const tbody = document.getElementById('liveAttendanceBody');
-        const currentStudentsCount = tbody.getElementsByTagName('tr').length + 1;
-        const currentTime = new Date().toLocaleTimeString('ar-IQ');
-
-        const newRow = document.createElement('tr');
-        newRow.innerHTML = `
-            <td>${currentStudentsCount}</td>
-            <td>${studentName} / (تسجيل يدوي)</td>
-            <td>${currentTime}</td>
-            <td style="color: green; font-weight: bold;">حاضر ✅</td>
-            <td><button onclick="this.closest('tr').remove()" style="background-color: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">إلغاء ❌</button></td>
-        `;
-        
-        tbody.appendChild(newRow);
-        nameInput.value = ''; // تفريغ المربع بعد الإضافة
-    }
-   // كود تشغيل زر توليد الباركود وإرسال اسم المادة
-const startSessionBtn = document.getElementById('startSessionBtn');
-const qrImageWrapper = document.getElementById('qrImageWrapper');
-
-if (startSessionBtn && qrImageWrapper) {
-    startSessionBtn.addEventListener('click', function() {
-        const subjectName = document.getElementById('subjectNameInput').value.trim();
-        
-        // نشيك إذا الأستاذ نسي يكتب اسم المادة
-        if (!subjectName) {
-            alert("الرجاء كتابة اسم المادة أولاً قبل توليد الباركود!");
-            return;
-        }
-
-        this.innerHTML = "⏳ جاري توليد الباركود...";
-
-        // نرسل اسم المادة للسيرفر
-        fetch(`/api/generate-qr?subject=${encodeURIComponent(subjectName)}`)
-        .then(response => response.json())
-        .then(data => {
-            if(data.success) {
-                // نولد رابط الصورة من الـ API المجاني
-                const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${data.secret}`;
-                
-                // نعرض اسم المادة والباركود
-                qrImageWrapper.innerHTML = `
-                    <h4 style="color: #2b6cb0; margin-bottom: 10px; font-size: 18px;">المادة الحالية: ${subjectName}</h4>
-                    <img src="${qrUrl}" alt="باركود المحاضرة" style="width: 200px; height: 200px; border: 2px solid #2b6cb0; border-radius: 10px; padding: 5px; margin-bottom: 10px;">
-                    <p style="color: #e53e3e; font-weight: bold; font-size: 13px;">🔒 هذا الباركود صالح لتسجيل حضور هذه المادة فقط</p>
-                `;
-                
-                startSessionBtn.innerHTML = "📍 تم توليد الباركود بنجاح";
+        function logout() {
+            if (confirm("هل أنت متأكد من تسجيل الخروج؟")) {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'index.html'; 
             }
-        })
-        .catch(err => {
-            alert("حدث خطأ في الاتصال بالسيرفر!");
-            startSessionBtn.innerHTML = "📍 بدء الجلسة وتوليد الباركود";
-        });
-    });
-} 
-</script>
-<script src="prof-app.js"></script>
+        }
+        function exportToExcel(tableID, filename) {
+            let table = document.getElementById(tableID);
+            if (!table) return alert("لا يوجد جدول!");
+            let workbook = XLSX.utils.table_to_book(table, {sheet: "قائمة الحضور"});
+            XLSX.writeFile(workbook, filename + '.xlsx');
+        }
+    </script>
 </body>
 </html>
-
-    

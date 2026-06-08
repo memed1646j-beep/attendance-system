@@ -1,281 +1,157 @@
 document.addEventListener('DOMContentLoaded', () => {
-    
-    let currentClassCode = ""; // لحفظ كود الكلاس
+    const socket = io(); // فتح خط أونلاين 24/7 مع السيرفر
+    let qrUpdateInterval = null;
 
-    // ==========================================
-    // 1. نظام التنقل بين الصفحات
-    // ==========================================
+    // 1. نظام التنقل
     const navButtons = document.querySelectorAll('.nav-btn');
     const sections = document.querySelectorAll('.dash-section');
-
     navButtons.forEach(btn => {
         if(btn.classList.contains('logout-btn')) return;
-
         btn.addEventListener('click', () => {
             navButtons.forEach(b => b.classList.remove('active'));
             sections.forEach(s => s.classList.remove('active'));
-            
             btn.classList.add('active');
-            const targetId = btn.getAttribute('data-target');
-            document.getElementById(targetId).classList.add('active');
+            document.getElementById(btn.getAttribute('data-target')).classList.add('active');
         });
     });
 
-    // ==========================================
-    // 2. نظام الباركود الديناميكي والموقع (GPS)
-    // ==========================================
+    // 2. نظام الباركود ضد الغش
     const startSessionBtn = document.getElementById('startSessionBtn');
-    const qrContainer = document.getElementById('qrContainer');
-    let qrCodeObj = null;
+    const qrImageWrapper = document.getElementById('qrImageWrapper');
 
     if (startSessionBtn) {
         startSessionBtn.addEventListener('click', () => {
+            const subjectName = document.getElementById('subjectNameInput').value.trim();
+            if (!subjectName) return alert("الرجاء كتابة اسم المادة أولاً!");
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
                         const lat = position.coords.latitude;
                         const lng = position.coords.longitude;
                         
-                        alert("تم تحديد موقع القاعة بنجاح! سيبدأ عرض الباركود.");
-                        
-                        startSessionBtn.innerText = "✅ الجلسة فعالة الآن";
+                        alert("✅ تم تحديد موقع القاعة وبدء الجلسة!");
+                        startSessionBtn.innerText = "✅ الجلسة فعالة وتتحدث تلقائياً";
                         startSessionBtn.style.backgroundColor = "#48bb78";
-                        startSessionBtn.disabled = true;
-generateDynamicQR(lat, lng);
-                        
-                        // تشغيل المراقبة الحية وربطها بالكلاس الحالي
-                        if(currentClassCode) {
-                            startLiveMonitoring(currentClassCode);
-                        } else {
-                            // إذا الأستاذ ما أنشأ كلاس، نمرر اسم افتراضي مؤقت للتجربة
-                            startLiveMonitoring("Test-Session");
-                        }
 
-                        setInterval(() => {
-                            generateDynamicQR(lat, lng);
+                        // نطلب الباركود أول مرة
+                        socket.emit('startSession', { subject: subjectName, lat, lng });
+
+                        // يتحدث الباركود كل 10 ثواني (نظام ضد الغش لمنع تصوير الشاشة)
+                        if(qrUpdateInterval) clearInterval(qrUpdateInterval);
+                        qrUpdateInterval = setInterval(() => {
+                            socket.emit('startSession', { subject: subjectName, lat, lng });
                         }, 10000);
-                        
                     },
-                    (error) => {
-                        alert("❌ يرجى الموافقة على إعطاء صلاحية الموقع (GPS) لفتح الجلسة!");
-                    }
+                    (error) => { alert("❌ يرجى إعطاء صلاحية الموقع (GPS) لفتح الجلسة!"); }
                 );
-            } else {
-                alert("متصفحك لا يدعم ميزة تحديد الموقع!");
             }
         });
     }
 
-    function generateDynamicQR(lat, lng) {
-        const timestamp = new Date().getTime();
-        const qrData = JSON.stringify({ profLat: lat, profLng: lng, time: timestamp });
-        qrContainer.innerHTML = ''; 
-        qrCodeObj = new QRCode(qrContainer, {
-            text: qrData, width: 200, height: 200, colorDark : "#000000", colorLight : "#ffffff", correctLevel : QRCode.CorrectLevel.H
-        });
-    }
+    // استقبال الشفرة وعرض الباركود
+    socket.on('sessionUpdated', (data) => {
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${data.secret}`;
+        qrImageWrapper.innerHTML = `
+            <h4 style="color: #2b6cb0; margin-bottom: 10px;">المادة الحالية: ${data.subject}</h4>
+            <img src="${qrUrl}" alt="باركود المحاضرة" style="width: 200px; height: 200px; border: 2px solid #2b6cb0; border-radius: 10px; padding: 5px;">
+            <p style="color: #e53e3e; font-weight: bold; font-size: 13px;">🔒 الباركود يتغير كل 10 ثواني لمنع الغش</p>
+        `;
+    });
 
-    // ==========================================
-    // 3. نظام إنشاء الكلاسات ورفع ملفات الإكسل
-    // ==========================================
-    const createClassBtn = document.querySelector('#classes-section .main-btn');
-    const classNameInput = document.getElementById('className');
+    // 3. استقبال حضور الطالب لحظياً (Online)
+    socket.on('studentAttended', (studentData) => {
+        const emptyRow = document.getElementById('emptyMessageRow');
+        if (emptyRow) emptyRow.remove();
 
-    if (createClassBtn) {
-        createClassBtn.addEventListener('click', async () => {
-            const className = classNameInput.value;
+        const tbody = document.getElementById('liveAttendanceBody');
+        const currentCount = tbody.getElementsByTagName('tr').length + 1;
+        
+        const newRow = document.createElement('tr');
+        newRow.innerHTML = `
+            <td>${currentCount}</td>
+            <td>${studentData.studentName} / ${studentData.studentEmail}</td>
+            <td style="font-weight: bold; color: #2b6cb0;">${studentData.subject}</td>
+            <td style="color: #d69e2e; font-weight: bold;">${studentData.time}</td>
+            <td><button onclick="this.closest('tr').remove()" style="background-color: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;">إلغاء ❌</button></td>
+        `;
+        tbody.appendChild(newRow);
+    });
 
-            if(!className) {
-                alert("يرجى كتابة اسم المادة أولاً!");
-                return;
-            }
-
-            const response = await fetch('/create-class', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ className })
-            });
-            const result = await response.json();
-
-            if (result.success) {
-                currentClassCode = className;
-                localStorage.setItem('currentClass', className);
-                alert('✅ تم إنشاء الكلاس بنجاح!');
-                classNameInput.value = "";
-                loadClasses();
-            } else {
-                alert(result.message);
-            }
-        });
-    }
-
+    // 4. رفع الإكسل مفصول تماماً عن الكلاس
     const excelUploadInput = document.getElementById('excelUpload');
     if (excelUploadInput) {
         excelUploadInput.addEventListener('change', (e) => {
-            if (!localStorage.getItem('currentClass')) {
-                alert("❌ يرجى إنشاء كلاس أولاً قبل رفع ملف الإكسل الخاص به!");
-                excelUploadInput.value = ""; 
-                return;
-            }
-
+            const classCode = localStorage.getItem('currentClass') || "عام";
             const file = e.target.files[0];
             const reader = new FileReader();
 
             reader.onload = async (event) => {
                 const data = new Uint8Array(event.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const excelRows = XLSX.utils.sheet_to_json(worksheet);
-                
-                // استخراج الإيميلات
-                const studentEmails = excelRows.map(row => row.email || row['البريد الإلكتروني'] || row['الإيميل']).filter(Boolean);
+                const studentEmails = excelRows.map(row => row.email || row['البريد الإلكتروني']).filter(Boolean);
 
-                if (studentEmails.length === 0) {
-                    alert("❌ لم يتم العثور على عمود باسم (email) داخل ملف الإكسل!");
-                    return;
-                }
+                if (studentEmails.length === 0) return alert("❌ لم يتم العثور على عمود إيميلات!");
 
-                // إرسال للسيرفر
                 const response = await fetch('/import-excel-students', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ classCode: localStorage.getItem('currentClass'), studentEmails: studentEmails })
-        });
-        
-        const result = await response.json();
-        if (result.success) {
-            alert('✅ ' + result.message);
-        } else {
-            alert('❌ ' + result.message);
-        }
-    };
-
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ classCode, studentEmails })
+                });
+                const result = await response.json();
+                alert(result.success ? '✅ ' + result.message : '❌ ' + result.message);
+            };
             reader.readAsArrayBuffer(file);
         });
     }
-});
-/* ======================================================
-   نظام المراقبة الحية (Live Monitoring)
-====================================================== */
 
-// متغير لتخزين المؤقت حتى نكدر نوقفه إذا طلعنا من الجلسة
-let liveInterval = null;
-
-// دالة لجلب الحضور من السيرفر وتحديث الجدول
-async function fetchLiveAttendance(sessionId) {
-    try {
-        // تنبيه: تأكد إن هذا الرابط يطابق الرابط اللي بملف server.js مالتك
-        const response = await fetch(`/api/attendance/live/${sessionId}`);
-        
-        // إذا السيرفر رجع استجابة ناجحة
-        if (response.ok) {
-            const students = await response.json();
-            const tbody = document.getElementById('liveAttendanceBody');
-
-            // إذا اكو طلاب مسجلين (المصفوفة مو فارغة)
-            if (students && students.length > 0) {
-                tbody.innerHTML = ''; // نمسح رسالة "بانتظار تسجيل حضور الطلاب..."
-
-                // نضيف كل طالب كسطر جديد بالجدول
-                students.forEach((student, index) => {
-                    // ترتيب الوقت بشكل مفهوم
-                    const time = new Date(student.timestamp).toLocaleTimeString('ar-IQ');
-                    
-                    const row = `
-                        <tr>
-                            <td>${index + 1}</td>
-                            <td>${student.name || student.email}</td>
-                            <td>${time}</td>
-                            <td><span class="status-badge">حاضر</span></td>
-                        </tr>
-                    `;
-                    tbody.innerHTML += row;
-                });
-            }
-        }
-    } catch (error) {
-        console.error("خطأ في جلب بيانات المراقبة الحية:", error);
-    }
-}
-
-// دالة تشغيل المراقبة (تستدعيها من تبدأ جلسة الباركود)
-function startLiveMonitoring(sessionId) {
-    // 1. إذا اكو مؤقت قديم شغال، نوقفه حتى لا يصير تداخل
-    if (liveInterval) {
-        clearInterval(liveInterval);
-    }
-    
-    // 2. نجلب البيانات فوراً أول مرة
-    fetchLiveAttendance(sessionId);
-
-    // 3. نشغل المؤقت حتى يعيد جلب البيانات كل 3 ثواني (3000 ملي ثانية)
-    liveInterval = setInterval(() => {
-        fetchLiveAttendance(sessionId);
-    }, 3000);
-}
-
-// دالة إيقاف المراقبة (تستدعيها من تنهي الجلسة)
-function stopLiveMonitoring() {
-    if (liveInterval) {
-        clearInterval(liveInterval);
-        liveInterval = null;
-    }
-}
-async function createNewClass() {
-    const className = document.getElementById('className').value;
-    
-    if (!className) {
-        alert('الرجاء كتابة اسم الكلاس (المادة) أولاً!');
-        return;
-    }
-
-    try {
-        const res = await fetch('/create-class', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ className: className })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-            alert('✅ تم إنشاء الكلاس بنجاح!');
-            document.getElementById('className').value = ''; // تفريغ الحقل بعد الإنشاء
-        } else {
-            alert(data.message);
-        }
-    } catch (err) {
-        alert('خطأ في الاتصال بالسيرفر');
-    }
-}
-// دالة جلب وعرض الكلاسات
-async function loadClasses() {
-    try {
-        const response = await fetch('/get-classes');
-        const data = await response.json();
-        
-        if (data.success) {
-            const list = document.getElementById('classes-list');
-            if(list) {
-                list.innerHTML = ''; // تصفير القائمة 
-              data.classes.forEach(course => {
-    list.innerHTML += `
-        <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
-            <h3 style="margin: 0; color: #2c3e50; font-size: 18px;">📘 ${course.name}</h3>
-            <button class="secondary-btn" onclick="window.location.href='session.html?classCode=${course.name}'" style="margin: 0; background: #27ae60; color: white; border: none; padding: 8px 12px; border-radius: 5px;">فتح الجلسة</button>
-        </div>
-    `;
-});
-            }
-        }
-    } catch (error) {
-        console.log('حدث خطأ أثناء تحميل الكلاسات:', error);
-    }
-}
-
-// استدعاء الدالة فور تحميل الصفحة
-document.addEventListener('DOMContentLoaded', () => {
+    // تحميل الكلاسات الأولية
     loadClasses();
 });
+
+// دوال الكلاسات العامة والتسجيل اليدوي
+async function createNewClass() {
+    const className = document.getElementById('className').value;
+    if (!className) return alert('الرجاء كتابة اسم الكلاس!');
+    const res = await fetch('/create-class', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ className }) });
+    const data = await res.json();
+    if (data.success) {
+        alert('✅ تم إنشاء الكلاس بنجاح!');
+        document.getElementById('className').value = '';
+        loadClasses();
+    }
+}
+
+async function loadClasses() {
+    const response = await fetch('/get-classes');
+    const data = await response.json();
+    const list = document.getElementById('classes-list');
+    if (data.success && list) {
+        list.innerHTML = ''; 
+        data.classes.forEach(course => {
+            list.innerHTML += `<div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px;">📘 ${course.name}</div>`;
+        });
+    }
+}
+
+function addManualAttendance() {
+    const nameInput = document.getElementById('manualStudentName');
+    if (!nameInput.value.trim()) return alert("الرجاء كتابة اسم الطالب!");
+    
+    const emptyRow = document.getElementById('emptyMessageRow');
+    if (emptyRow) emptyRow.remove();
+
+    const tbody = document.getElementById('liveAttendanceBody');
+    const time = new Date().getHours() + ':' + new Date().getMinutes().toString().padStart(2, '0');
+    
+    tbody.innerHTML += `<tr>
+        <td>-</td>
+        <td>${nameInput.value} (يدوي)</td>
+        <td>-</td>
+        <td style="color: #d69e2e; font-weight: bold;">${time}</td>
+        <td><button onclick="this.closest('tr').remove()" style="background-color: #e53e3e; color: white; border: none; padding: 5px; border-radius: 5px;">إلغاء</button></td>
+    </tr>`;
+    nameInput.value = '';
+}
