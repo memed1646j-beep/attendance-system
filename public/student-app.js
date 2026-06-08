@@ -11,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const studentData = JSON.parse(loggedInUser);
         const profileSection = document.getElementById('profileSection');
         
-        // إضافة اسم الطالب وإيميله فوق زر تسجيل الخروج
         const infoDiv = document.createElement('div');
         infoDiv.style.marginBottom = '20px';
         infoDiv.style.padding = '15px';
@@ -20,12 +19,14 @@ document.addEventListener('DOMContentLoaded', () => {
         infoDiv.style.textAlign = 'center';
         infoDiv.innerHTML = `<strong style="color: #2b6cb0;">الاسم:</strong> ${studentData.name || 'غير متوفر'}<br><strong style="color: #2b6cb0;">الإيميل:</strong> ${studentData.email}`;
         
-        // إدخال البيانات قبل زر تسجيل الخروج
         profileSection.insertBefore(infoDiv, document.getElementById('logoutBtn'));
     }
     displayStudentHistory();
 });
 
+// =========================================
+// نظام الكاميرا والزووم
+// =========================================
 startScanBtn.addEventListener('click', () => {
     startScanBtn.style.display = 'none';
     stopScanBtn.style.display = 'inline-block';
@@ -38,10 +39,10 @@ startScanBtn.addEventListener('click', () => {
         { fps: 10, qrbox: { width: 250, height: 250 } }, 
         onScanSuccess, 
         onScanFailure
-    )
-    scanResultDiv.innerHTML = ''; // تصفير رسالة التحميل
+    ).then(() => { // 👈 التصحيح الأهم: فتح دالة الـ then
+        scanResultDiv.innerHTML = ''; // تصفير رسالة التحميل
 
-        // تشغيل ميزة الزووم بأمان بعد تشغيل الكاميرا بـ 500 ملي ثانية لضمان استقرار البث
+        // تشغيل ميزة الزووم بأمان بعد 500 ملي ثانية
         setTimeout(() => {
             try {
                 const videoElement = document.querySelector("#reader video");
@@ -80,14 +81,46 @@ startScanBtn.addEventListener('click', () => {
                 console.log("فشل تهيئة الزووم بأمان:", zoomError);
             }
         }, 500); 
-        
-    })
-    .catch(err => { 
+    }).catch(err => { 
         console.error(err);
         scanResultDiv.innerHTML = `<span style="color: red;">تعذر فتح الكاميرا! تأكد من إعطاء الصلاحيات.</span>`; 
         resetButtons(); 
     });
- // <--- هذا القوس جداً مهم! يقفل زر الكاميرا بالكامل ويفصله عن التنقل
+}); // قفل زر التشغيل بشكل نهائي
+
+// =========================================
+// دالة إرسال الباركود للسيرفر عند المسح (كانت مفقودة)
+// =========================================
+function onScanSuccess(decodedText, decodedResult) {
+    stopScanner();
+    scanResultDiv.innerHTML = `<span style="color: blue;">⏳ جاري إرسال البيانات والتحقق من الموقع وقائمة الإكسل...</span>`;
+
+    const loggedInUser = localStorage.getItem('currentUser');
+    if (!loggedInUser) return scanResultDiv.innerHTML = `<span style="color: red;">❌ خطأ: لم يتم العثور على بيانات الطالب.</span>`;
+    
+    const studentData = JSON.parse(loggedInUser);
+    const now = new Date();
+    const exactTime = now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                socket.emit('scanQR', {
+                    qrCode: decodedText,              
+                    studentEmail: studentData.email,  
+                    time: exactTime,
+                    lat: position.coords.latitude,
+                    lng: position.coords.longitude
+                });
+            },
+            (error) => {
+                scanResultDiv.innerHTML = `<span style="color: red;">❌ يرجى تفعيل الـ GPS لتسجيل حضورك بالقاعة!</span>`;
+            }
+        );
+    } else {
+        scanResultDiv.innerHTML = `<span style="color: red;">متصفحك لا يدعم تحديد الموقع.</span>`;
+    }
+}
 
 // =========================================
 // دوال إيقاف الكاميرا والريست
@@ -115,7 +148,7 @@ stopScanBtn.addEventListener('click', () => {
 });
 
 // =========================================
-// استقبال الرد من السيرفر (ناجح أو فاشل بسبب الإكسل)
+// استقبال الرد من السيرفر
 // =========================================
 socket.on('scanResult', (data) => {
     if(data.success) {
@@ -137,7 +170,7 @@ socket.on('scanResult', (data) => {
 });
 
 // =========================================
-// نظام التنقل (الآن يعمل 100% بدون تداخل)
+// نظام التنقل
 // =========================================
 const navScan = document.getElementById('nav-scan');
 const navHistory = document.getElementById('nav-history');

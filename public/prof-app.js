@@ -91,7 +91,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const excelUploadInput = document.getElementById('excelUpload');
     if (excelUploadInput) {
         excelUploadInput.addEventListener('change', (e) => {
-            // تم التعديل هنا: جلب الكلاس المختار من القائمة المنسدلة الخاصة بالإكسل
             const excelClassSelect = document.getElementById('excelClassSelect');
             const classCode = excelClassSelect ? excelClassSelect.value : '';
 
@@ -109,24 +108,45 @@ document.addEventListener('DOMContentLoaded', () => {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const excelRows = XLSX.utils.sheet_to_json(worksheet);
-                const studentEmails = excelRows.map(row => row.email || row['البريد الإلكتروني'] || row['البريد الالكتروني']).filter(Boolean);
 
-                if (studentEmails.length === 0) return alert("❌ لم يتم العثور على إيميلات في الملف! تأكد من وجود حقل باسم email");
+                // --- التعديل الذكي: سحب الإيميلات مهما كان اسم العمود ---
+                const studentEmails = excelRows.map(row => {
+                    const keys = Object.keys(row);
+                    // نبحث عن أي عمود يحتوي على كلمة email أو بريد أو ايميل
+                    const emailKey = keys.find(key => 
+                        key.toLowerCase().includes('email') || 
+                        key.includes('بريد') || 
+                        key.includes('ايميل')
+                    );
+                    // إذا لقيناه، ناخذه وننظفه من المسافات الزايدة
+                    return emailKey ? row[emailKey].trim() : null;
+                }).filter(Boolean); // إزالة الحقول الفارغة
+                // ----------------------------------------------------
 
-                const response = await fetch('/import-excel-students', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ classCode, studentEmails })
-                });
-                const result = await response.json();
-                alert(result.success ? '✅ ' + result.message : '❌ ' + result.message);
+                if (studentEmails.length === 0) {
+                    alert("❌ لم يتم العثور على إيميلات في الملف! تأكد من وجود عمود باسم 'email'.");
+                    excelUploadInput.value = "";
+                    return;
+                }
+
+                // إرسال البيانات للسيرفر
+                try {
+                    const response = await fetch('/import-excel-students', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ classCode, studentEmails })
+                    });
+                    const result = await response.json();
+                    alert(result.success ? '✅ ' + result.message : '❌ ' + result.message);
+                } catch (err) {
+                    alert("❌ خطأ في الاتصال بالسيرفر!");
+                }
+                
                 excelUploadInput.value = ""; // تفريغ الحقل بعد الرفع
             };
             reader.readAsArrayBuffer(file);
         });
     }
-
-    loadClasses();
 });
 
 // دوال الكلاسات

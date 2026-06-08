@@ -79,20 +79,35 @@ app.post('/import-excel-students', async (req, res) => {
     try {
         const { classCode, studentEmails } = req.body;
         
+        // --- جهاز المراقبة (سجل الطباعة في Railway) ---
+        console.log(`\n📥 استلمت طلب رفع إكسل للكلاس: ${classCode}`);
+        console.log(`📧 عدد الإيميلات المستلمة: ${studentEmails.length}`);
+        console.log(`📋 الإيميلات هي:`, studentEmails);
+        // ----------------------------------------------
+
+        if (!studentEmails || studentEmails.length === 0) {
+            return res.json({ success: false, message: 'مصفوفة الإيميلات فارغة، لم يتم الحفظ!' });
+        }
+
         // البحث عن الكلاس وتحديث قائمة الطلاب بإضافة الإيميلات الجديدة
         const updatedCourse = await Course.findOneAndUpdate(
             { name: classCode },
-            { $addToSet: { enrolledStudents: { $each: studentEmails } } }, // addToSet لمنع تكرار الإيميلات
+            { $addToSet: { enrolledStudents: { $each: studentEmails } } }, 
             { new: true }
         );
 
         if (!updatedCourse) {
+            console.log("❌ الكلاس غير موجود في قاعدة البيانات!");
             return res.json({ success: false, message: 'الكلاس المحدد غير موجود!' });
         }
 
-        console.log("تم استلام إكسل طلاب كلاس:", classCode);
-        res.json({ success: true, message: 'تم رفع قائمة الطلاب وربطها بالكلاس بنجاح!' });
-    } catch (error) { res.json({ success: false, message: 'خطأ في السيرفر أثناء رفع الإكسل' }); }
+        console.log("✅ تم حفظ الإيميلات في قاعدة البيانات بنجاح!");
+        res.json({ success: true, message: `تم رفع ${studentEmails.length} إيميل وربطها بالكلاس بنجاح!` });
+        
+    } catch (error) { 
+        console.error("❌ خطأ في السيرفر أثناء رفع الإكسل:", error);
+        res.json({ success: false, message: 'خطأ في السيرفر أثناء رفع الإكسل' }); 
+    }
 });
 
 app.get('/get-classes', async (req, res) => {
