@@ -19,7 +19,9 @@ mongoose.connect(dbURI).then(() => console.log('✅ متصل بقاعدة الب
 // الجداول (Models)
 const Student = mongoose.model('Student', new mongoose.Schema({ name: String, email: { type: String, unique: true }, password: String, college: String, department: String }));
 const Professor = mongoose.model('Professor', new mongoose.Schema({ email: { type: String, unique: true }, password: String }));
-const Course = mongoose.model('Course', new mongoose.Schema({ name: String }));
+
+// تم التعديل هنا: إضافة مصفوفة لحفظ إيميلات الطلاب المسموح لهم بالحضور (من ملف الإكسل)
+const Course = mongoose.model('Course', new mongoose.Schema({ name: String, enrolledStudents: [String] }));
 
 // ==========================================
 // مسارات الطالب والأستاذ (تسجيل الدخول والإنشاء)
@@ -62,21 +64,34 @@ app.post('/login-professor', async (req, res) => {
 });
 
 // ==========================================
-// مسارات الإكسل والكلاسات (مفصولة تماماً)
+// مسارات الإكسل والكلاسات
 // ==========================================
 app.post('/create-class', async (req, res) => {
     try {
-        const newCourse = new Course({ name: req.body.className });
+        const newCourse = new Course({ name: req.body.className, enrolledStudents: [] });
         await newCourse.save();
         res.json({ success: true, message: 'تم إنشاء الكلاس بنجاح' });
     } catch (error) { res.json({ success: false, message: 'خطأ في السيرفر أثناء إنشاء الكلاس' }); }
 });
 
+// تم التعديل هنا: ربط الإكسل المرفوع بالكلاس المحدد وحفظه بقاعدة البيانات
 app.post('/import-excel-students', async (req, res) => {
     try {
         const { classCode, studentEmails } = req.body;
+        
+        // البحث عن الكلاس وتحديث قائمة الطلاب بإضافة الإيميلات الجديدة
+        const updatedCourse = await Course.findOneAndUpdate(
+            { name: classCode },
+            { $addToSet: { enrolledStudents: { $each: studentEmails } } }, // addToSet لمنع تكرار الإيميلات
+            { new: true }
+        );
+
+        if (!updatedCourse) {
+            return res.json({ success: false, message: 'الكلاس المحدد غير موجود!' });
+        }
+
         console.log("تم استلام إكسل طلاب كلاس:", classCode);
-        res.json({ success: true, message: 'تم رفع قائمة الطلاب بنجاح وبدون تضارب!' });
+        res.json({ success: true, message: 'تم رفع قائمة الطلاب وربطها بالكلاس بنجاح!' });
     } catch (error) { res.json({ success: false, message: 'خطأ في السيرفر أثناء رفع الإكسل' }); }
 });
 
@@ -88,7 +103,7 @@ app.get('/get-classes', async (req, res) => {
 });
 
 // ==========================================
-// نظام الحضور المباشر (Socket.io) 24/7 + حماية الغش
+// نظام الحضور المباشر (Socket.io)
 // ==========================================
 let activeSessions = {}; // يخزن الشفرات الحية لكل مادة لمنع الغش
 
@@ -98,22 +113,16 @@ io.on('connection', (socket) => {
     // 1. الأستاذ يبدأ الجلسة أو يحدث الباركود
     socket.on('startSession', (data) => {
         const { subject, lat, lng } = data;
-        const secretToken = "LEC_" + Math.random().toString(36).substr(2, 9); // توكن ديناميكي
+        const secretToken = "LEC_" + Math.random().toString(36).substr(2, 9);
         
         activeSessions[subject] = { secret: secretToken, profSocketId: socket.id, lat, lng };
         socket.emit('sessionUpdated', { success: true, secret: secretToken, subject });
     });
 
-    socket.on('scanQR', async (data) => { // 1. أضف async هنا
-    const { qrCode, studentName, studentEmail, time, lat, lng } = data;
+    // تم التعديل هنا: إضافة التحقق من الإكسل وجلب الاسم الحقيقي
+    socket.on('scanQR', async (data) => { 
+        const { qrCode, studentEmail, time, lat, lng } = data;
 
-    // --- (أضف هذا الجزء الجديد) ---
-    // التحقق من وجود الطالب في قاعدة البيانات
-    const student = await Student.findOne({ email: studentEmail });
-    if (!student) {
-        return socket.emit('scanResult', { success: false, message: "❌ اسمك غير موجود في قائمة الحضور الرسمية!" });
-    }
-    // ----------------------------
         // البحث عن المادة ومطابقة الباركود لمنع مسح صورة قديمة
         let foundSubject = null;
         let sessionInfo = null;
@@ -130,13 +139,28 @@ io.on('connection', (socket) => {
             return socket.emit('scanResult', { success: false, message: "❌ الباركود غير صالح أو قديم! (يمنع الغش)" });
         }
 
+        // 1. التحقق من وجود الطالب في قاعدة البيانات الرئيسية
+        const student = await Student.findOne({ email: studentEmail });
+        if (!student) {
+            return socket.emit('scanResult', { success: false, message: "❌ حسابك غير مسجل في النظام!" });
+        }
+
+        // 2. التحقق من أن الطالب موجود في قائمة الإكسل الخاصة بهذا الكلاس تحديداً
+        const course = await Course.findOne({ name: foundSubject });
+        if (!course || !course.enrolledStudents.includes(studentEmail)) {
+            return socket.emit('scanResult', { success: false, message: `❌ اسمك غير موجود في قائمة الإكسل المرفوعة لمادة: ${foundSubject}!` });
+        }
+
         if (!lat || !lng) {
             return socket.emit('scanResult', { success: false, message: "❌ يرجى الموافقة على الموقع (GPS) لتأكيد حضورك بالقاعة!" });
         }
 
-        // إرسال الحضور فوراً لشاشة الأستاذ
+        // إرسال الحضور فوراً لشاشة الأستاذ (بإرسال الاسم من الداتا بيس لحل مشكلة الإيميل)
         io.to(sessionInfo.profSocketId).emit('studentAttended', {
-            studentName:studentName, studentEmail:studentEmail, time:time, subject: foundSubject
+            studentName: student.name, // الاسم الصريح 
+            studentEmail: studentEmail, 
+            time: time, 
+            subject: foundSubject
         });
 
         // تأكيد النجاح للطالب

@@ -44,8 +44,12 @@
             <section id="qr-section" class="dash-section active">
                 <div id="qrContainer" style="display: flex; flex-direction: column; align-items: center; gap: 15px; padding: 25px; background: #f7fafc; border-radius: 8px; border: 1px solid #e2e8f0; text-align: center;">
                     <h3 style="color: #2d3748;">توليد رمز الدخول (QR Code)</h3>
-                    <p style="font-size: 14px; color: #4a5568;">الرجاء كتابة اسم المادة أولاً لبدء المحاضرة:</p>
-                    <input type="text" id="subjectNameInput" placeholder="اكتب اسم المادة هنا..." style="padding: 12px; width: 100%; max-width: 300px; border: 2px solid #cbd5e0; border-radius: 5px; text-align: center;">
+                    <p style="font-size: 14px; color: #4a5568;">الرجاء اختيار الكلاس لبدء المحاضرة وتوليد الباركود الخاص به:</p>
+                    
+                    <select id="subjectSelect" style="padding: 12px; width: 100%; max-width: 300px; border: 2px solid #cbd5e0; border-radius: 5px; text-align: center; font-weight: bold; background-color: white;">
+                        <option value="">جاري تحميل الكلاسات...</option>
+                    </select>
+
                     <button id="startSessionBtn" style="padding: 12px 25px; background-color: #2b6cb0; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; width: 100%; max-width: 300px;">
                         📍 بدء الجلسة وتوليد الباركود
                     </button>
@@ -57,14 +61,23 @@
                 <h3>إدارة الكلاسات</h3>
                 <div class="action-card">
                     <h4>إنشاء كلاس جديد</h4>
-                    <input type="text" id="className" placeholder="اسم المادة (مثال: شبكات الحاسوب)">
+                    <input type="text" id="className" placeholder="اسم المادة (مثال: شبكات الحاسوب - قسم الأمن السيبراني)">
                     <button class="main-btn" onclick="createNewClass()">إنشاء ➕</button>
                 </div>
-                <div id="classes-list" style="margin-top: 20px;"></div>
+                
+                <h4 style="margin-top: 20px; color: #2d3748;">قائمة الكلاسات الحالية:</h4>
+                <div id="classes-list" style="margin-top: 10px;"></div>
+                
                 <div class="action-card mt-20">
-                    <h4>رفع قائمة الطلاب (Excel)</h4>
-                    <button class="secondary-btn">📥 تحميل قالب الإكسل</button>
-                    <input type="file" id="excelUpload" accept=".xlsx, .xls" style="margin-top: 10px;">
+                    <h4>رفع قائمة الطلاب (Excel) لكلاس محدد</h4>
+                    <p style="font-size: 13px; color: #718096; margin-bottom: 10px;">اختر الكلاس أولاً ثم ارفع ملف الإكسل الخاص بطلاب هذا الكلاس:</p>
+                    
+                    <select id="excelClassSelect" style="padding: 10px; width: 100%; border: 1px solid #cbd5e0; border-radius: 5px; margin-bottom: 15px; font-weight: bold; background-color: white;">
+                        <option value="">جاري تحميل الكلاسات...</option>
+                    </select>
+
+                    <button class="secondary-btn" style="display: block; margin-bottom: 10px;">📥 تحميل قالب الإكسل الرسمي</button>
+                    <input type="file" id="excelUpload" accept=".xlsx, .xls" style="margin-top: 10px; width: 100%;">
                 </div>
             </section>
 

@@ -22,16 +22,19 @@
             <h3>مسح الباركود (QR Code) 📷</h3>
             <p>قم بتوجيه كاميرا هاتفك نحو الباركود المعروض.</p>
             <div id="reader" class="camera-box"></div>
-            <button id="startScanBtn" class="primary-btn" style="padding: 10px 20px; background: #2b6cb0; color: white; border: none; border-radius: 5px;">افتح الكاميرا</button>
-            <button id="stopScanBtn" class="danger-btn" style="display: none; padding: 10px 20px; background: #e53e3e; color: white; border: none; border-radius: 5px;">إيقاف</button>
-            <div id="scanResult" class="result-message"></div>
+            <button id="startScanBtn" class="primary-btn" style="padding: 10px 20px; background: #2b6cb0; color: white; border: none; border-radius: 5px; margin-top: 10px; cursor: pointer;">افتح الكاميرا</button>
+            <button id="stopScanBtn" class="danger-btn" style="display: none; padding: 10px 20px; background: #e53e3e; color: white; border: none; border-radius: 5px; margin-top: 10px; cursor: pointer;">إيقاف الكاميرا</button>
+            <div id="scanResult" class="result-message" style="margin-top: 15px; font-weight: bold; text-align: center;"></div>
         </div>
 
-        <div id="historySection" class="student-section" style="display: none;">
-            </div>
+        <div id="historySection" class="student-section" style="display: none; padding: 20px; background: white; border-radius: 8px;">
+            <h3>سجل الحضور 📋</h3>
+            <p style="color: #718096; text-align: center;">قريباً سيتم عرض سجل حضورك هنا.</p>
+        </div>
 
-        <div id="profileSection" class="student-section" style="display: none;">
+        <div id="profileSection" class="student-section" style="display: none; padding: 20px; background: white; border-radius: 8px; text-align: center;">
             <h3>الملف الشخصي 👤</h3>
+            <div id="studentInfoDisplay" style="margin-bottom: 20px; padding: 10px; background: #edf2f7; border-radius: 5px;"></div>
             <button id="logoutBtn" class="danger-btn" style="background-color: #e53e3e; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">تسجيل الخروج</button>
         </div>
     </main>

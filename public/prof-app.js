@@ -15,13 +15,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 2. نظام الباركود (محدث وسريع محلياً)
+    // 2. نظام الباركود (محدث لاختيار الكلاس من القائمة المنسدلة)
     const startSessionBtn = document.getElementById('startSessionBtn');
     
     if (startSessionBtn) {
         startSessionBtn.addEventListener('click', () => {
-            const subjectName = document.getElementById('subjectNameInput').value.trim();
-            if (!subjectName) return alert("الرجاء كتابة اسم المادة أولاً!");
+            // تم التعديل هنا: جلب اسم الكلاس من القائمة المنسدلة بدل الحقل النصي
+            const subjectSelect = document.getElementById('subjectSelect');
+            const subjectName = subjectSelect ? subjectSelect.value : '';
+            
+            if (!subjectName) return alert("الرجاء اختيار الكلاس المُراد بدء محاضرته أولاً!");
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
@@ -29,13 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         const lat = position.coords.latitude;
                         const lng = position.coords.longitude;
                         
-                        alert("✅ تم بدء الجلسة!");
+                        alert(`✅ تم بدء الجلسة لكلاس: ${subjectName}`);
                         startSessionBtn.innerText = "✅ الجلسة فعالة وتتحدث تلقائياً";
                         startSessionBtn.style.backgroundColor = "#48bb78";
 
                         socket.emit('startSession', { subject: subjectName, lat, lng });
 
-                        // زيادة الوقت إلى 30 ثانية ليعطي الطالب فرصة للمسح
+                        // إعادة التحديث كل 30 ثانية لمنع الغش
                         if(qrUpdateInterval) clearInterval(qrUpdateInterval);
                         qrUpdateInterval = setInterval(() => {
                             socket.emit('startSession', { subject: subjectName, lat, lng });
@@ -49,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // توليد الباركود محلياً (سريع جداً وبدون مشاكل انترنت)
+    // توليد الباركود محلياً
     socket.on('sessionUpdated', (data) => {
         const qrImageWrapper = document.getElementById('qrImageWrapper');
         qrImageWrapper.innerHTML = `
@@ -65,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // 3. استقبال حضور الطالب لحظياً
+    // 3. استقبال حضور الطالب لحظياً (يعرض الاسم الصريح القادم من السيرفر)
     socket.on('studentAttended', (studentData) => {
         const emptyRow = document.getElementById('emptyMessageRow');
         if (emptyRow) emptyRow.remove();
@@ -76,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const newRow = document.createElement('tr');
         newRow.innerHTML = `
             <td>${currentCount}</td>
-            <td>${studentData.studentName} / ${studentData.studentEmail}</td>
+            <td><strong>${studentData.studentName}</strong> <br> <span style="font-size:12px; color:#718096;">${studentData.studentEmail}</span></td>
             <td style="font-weight: bold; color: #2b6cb0;">${studentData.subject}</td>
             <td style="color: #d69e2e; font-weight: bold;">${studentData.time}</td>
             <td><button onclick="this.closest('tr').remove()" style="background-color: #e53e3e; color: white; border: none; padding: 5px 10px; border-radius: 5px;">إلغاء ❌</button></td>
@@ -84,12 +87,20 @@ document.addEventListener('DOMContentLoaded', () => {
         tbody.appendChild(newRow);
     });
 
-    // 4. رفع الإكسل (مستقل تماماً)
+    // 4. رفع الإكسل لكلاس محدد
     const excelUploadInput = document.getElementById('excelUpload');
     if (excelUploadInput) {
         excelUploadInput.addEventListener('change', (e) => {
-            // جلب اسم الكلاس المفتوح، وإذا لا يوجد يرسله عام
-            const classCode = localStorage.getItem('currentClass') || "عام";
+            // تم التعديل هنا: جلب الكلاس المختار من القائمة المنسدلة الخاصة بالإكسل
+            const excelClassSelect = document.getElementById('excelClassSelect');
+            const classCode = excelClassSelect ? excelClassSelect.value : '';
+
+            if (!classCode) {
+                alert("❌ الرجاء اختيار الكلاس المُراد رفع ملف الإكسل له أولاً!");
+                excelUploadInput.value = "";
+                return;
+            }
+
             const file = e.target.files[0];
             const reader = new FileReader();
 
@@ -98,9 +109,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const workbook = XLSX.read(data, { type: 'array' });
                 const worksheet = workbook.Sheets[workbook.SheetNames[0]];
                 const excelRows = XLSX.utils.sheet_to_json(worksheet);
-                const studentEmails = excelRows.map(row => row.email || row['البريد الإلكتروني']).filter(Boolean);
+                const studentEmails = excelRows.map(row => row.email || row['البريد الإلكتروني'] || row['البريد الالكتروني']).filter(Boolean);
 
-                if (studentEmails.length === 0) return alert("❌ لم يتم العثور على إيميلات في الملف!");
+                if (studentEmails.length === 0) return alert("❌ لم يتم العثور على إيميلات في الملف! تأكد من وجود حقل باسم email");
 
                 const response = await fetch('/import-excel-students', {
                     method: 'POST',
@@ -120,32 +131,56 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // دوال الكلاسات
 async function createNewClass() {
-    const className = document.getElementById('className').value;
+    const className = document.getElementById('className').value.trim();
     if (!className) return alert('الرجاء كتابة اسم الكلاس!');
     
     const res = await fetch('/create-class', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ className }) });
     const data = await res.json();
     
     if (data.success) {
-        localStorage.setItem('currentClass', className); // حفظ الكلاس في الذاكرة
         alert('✅ تم إنشاء الكلاس بنجاح!');
         document.getElementById('className').value = '';
-        loadClasses();
+        loadClasses(); // تحديث القوائم فوراً
     }
 }
 
+// تم التعديل هنا: دالة تحميل الكلاسات تقوم الآن بتحديث القوائم المنسدلة للباركود والإكسل تلقائياً
 async function loadClasses() {
     const response = await fetch('/get-classes');
     const data = await response.json();
+    
     const list = document.getElementById('classes-list');
-    if (data.success && list) {
-        list.innerHTML = ''; 
-        data.classes.forEach(course => {
-            list.innerHTML += `<div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px;">📘 ${course.name}</div>`;
-        });
+    const subjectSelect = document.getElementById('subjectSelect');
+    const excelClassSelect = document.getElementById('excelClassSelect');
+    
+    if (data.success) {
+        // 1. تحديث عرض الكلاسات في صفحة الكلاسات
+        if (list) {
+            list.innerHTML = ''; 
+            data.classes.forEach(course => {
+                list.innerHTML += `<div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 10px; font-weight: bold;">📘 ${course.name}</div>`;
+            });
+        }
+        
+        // 2. تغذية قائمة اختيار مادة الباركود
+        if (subjectSelect) {
+            subjectSelect.innerHTML = '<option value="">-- اختر الكلاس لبدء المحاضرة --</option>';
+            data.classes.forEach(course => {
+                subjectSelect.innerHTML += `<option value="${course.name}">${course.name}</option>`;
+            });
+        }
+
+        // 3. تغذية قائمة اختيار الكلاس لرفع الإكسل
+        if (excelClassSelect) {
+            excelClassSelect.innerHTML = '<option value="">-- اختر الكلاس لرفع الإكسل له --</option>';
+            data.classes.forEach(course => {
+                excelClassSelect.innerHTML += `<option value="${course.name}">${course.name}</option>`;
+            });
+        }
     }
 }
 
+// حضور يدوي (تم الإبقاء عليه كما هو بدون تعديل)
 function addManualAttendance() {
     const nameInput = document.getElementById('manualStudentName');
     if (!nameInput.value.trim()) return alert("الرجاء كتابة اسم الطالب!");
